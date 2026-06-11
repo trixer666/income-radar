@@ -60,3 +60,19 @@ Uzytkownik loguje sie RAZ w osobnym profilu Chrome: `chrome-debug.cmd`
 - Po akcji zostaw notke w szkicu pozycji (co zrobiono, link).
 - Prolific/Outlier/Mindrift: wolno sprawdzac dostepnosc badan/taskow,
   NIGDY nie wykonuj samych taskow/ankiet (ban za automatyzacje).
+
+## Hotele (straznik rezerwacji)
+
+Model Pruvo: ~40% rezerwacji hotelowych TANIEJE po zrobieniu rezerwacji.
+User robi rezerwacje z DARMOWYM ANULOWANIEM, wkleja link (z checkin/checkout)
+w zakladce Hotele -> serwer mierzy cene przez CDP (debug-chrome, port 9333,
+`hotels.mjs`) co `hotelCheckMinutes` (domyslnie 180 min). Spadek >= 30 zl i >= 5%
+-> Telegram z linkiem do przebookowania. Roznica zostaje u usera.
+
+- Wymaga dzialajacego chrome-debug.cmd (status `chrome-offline` gdy zamkniety).
+- `affiliateWrap` w config: szablon linku afiliacyjnego z {url}
+  (np. Travelpayouts: https://tp.media/r?marker=MARKER&p=PROGRAM&u={url}).
+  Pusty = surowy link. Po zalozeniu kont afiliacyjnych przez usera - uzupelnic.
+- Monetyzacja docelowa (wariant B z researchu): user + znajomi + grupy FB
+  korzystaja ze straznika, przebookowania ida przez link afiliacyjny.
+- API: GET/POST /api/watches, POST /api/watches/check {id}, /api/watches/del {id}.

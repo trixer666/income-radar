@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { refreshAll } from './fetch.mjs';
+import { runHotelChecks, readWatches, writeWatches } from './hotels.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const cfg = JSON.parse(await readFile(join(ROOT, 'config.json'), 'utf8'));
@@ -18,6 +19,16 @@ let lastIds = null;
 // swiezy config bez restartu (token Telegrama mozna dopisac w locie)
 async function freshCfg() {
   try { return JSON.parse(await readFile(join(ROOT, 'config.json'), 'utf8')); } catch { return cfg; }
+}
+
+// pojedyncza wiadomosc Telegram (uzywana przez radar i straznika hoteli)
+async function tgSend(c, text) {
+  if (!c.telegramToken || !c.telegramChatId) return;
+  await fetch(`https://api.telegram.org/bot${c.telegramToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: c.telegramChatId, text, disable_web_page_preview: true }),
+  }).catch(e => console.error('[telegram]', e.message));
 }
 
 // powiadomienia Telegram o swiezych okazjach (dziala przy zamknietej przegladarce)
@@ -143,6 +154,50 @@ const server = http.createServer(async (req, res) => {
       await doRefresh();
       return send(res, 200, await readJson(ITEMS, { items: [] }));
     }
+    if (url.pathname === '/api/watches' && req.method === 'GET') {
+      const c = await freshCfg();
+      const watches = await readWatches();
+      for (const w of watches) w.rebookUrl = c.affiliateWrap ? c.affiliateWrap.replace('{url}', encodeURIComponent(w.url)) : w.url;
+      return send(res, 200, watches);
+    }
+    if (url.pathname === '/api/watches' && req.method === 'POST') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const { url: wurl, label } = JSON.parse(body || '{}');
+      if (!/^https?:\/\//.test(wurl || '')) return send(res, 400, { error: 'zly url' });
+      const watches = await readWatches();
+      const w = {
+        id: 'w' + Date.now(),
+        url: wurl,
+        label: (label || '').slice(0, 80) || null,
+        checkin: (/[?&]checkin=(\d{4}-\d{2}-\d{2})/.exec(wurl) || [])[1] || null,
+        checkout: (/[?&]checkout=(\d{4}-\d{2}-\d{2})/.exec(wurl) || [])[1] || null,
+        baselinePrice: null, lastPrice: null, minPrice: null, lastAlertPrice: null,
+        status: 'new', lastCheck: null, history: [],
+        addedAt: Date.now(),
+      };
+      watches.push(w);
+      await writeWatches(watches);
+      const c = await freshCfg();
+      // pierwszy pomiar od razu - baseline na zywo
+      await runHotelChecks(c, { force: true, onlyId: w.id, notify: (t) => tgSend(c, t) });
+      return send(res, 200, await readWatches());
+    }
+    if (url.pathname === '/api/watches/del' && req.method === 'POST') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const { id } = JSON.parse(body || '{}');
+      await writeWatches((await readWatches()).filter(w => w.id !== id));
+      return send(res, 200, { ok: true });
+    }
+    if (url.pathname === '/api/watches/check' && req.method === 'POST') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const { id } = JSON.parse(body || '{}');
+      const c = await freshCfg();
+      await runHotelChecks(c, { force: true, onlyId: id || null, notify: (t) => tgSend(c, t) });
+      return send(res, 200, await readWatches());
+    }
     send(res, 404, { error: 'not found' });
   } catch (e) {
     send(res, 500, { error: e.message });
@@ -155,3 +210,15 @@ server.listen(cfg.port, '127.0.0.1', () => {
 
 doRefresh();
 setInterval(doRefresh, Math.max(2, cfg.refreshMinutes) * 60 * 1000);
+
+// straznik hoteli: tykamy co 10 min, realna kadencja per-watch wg hotelCheckMinutes (domyslnie 180)
+let hotelBusy = false;
+setInterval(async () => {
+  if (hotelBusy) return;
+  hotelBusy = true;
+  try {
+    const c = await freshCfg();
+    await runHotelChecks(c, { notify: (t) => tgSend(c, t) });
+  } catch (e) { console.error('[hotele]', e.message); }
+  finally { hotelBusy = false; }
+}, 10 * 60 * 1000);

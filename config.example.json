@@ -14,6 +14,11 @@
   "freelancerMaxUSD": 20000,
   "freelancerMinUSD": 50,
   "skills": ["lua", "fivem", "javascript", "typescript", "node", "scraping", "scraper", "bot", "telegram", "automation", "automatyzacja", "web", "ui", "html", "css", "sql", "api"],
+  "cdpUrl": "http://127.0.0.1:9333",
+  "hotelCheckMinutes": 180,
+  "hotelDropMinPct": 5,
+  "hotelDropMinPLN": 30,
+  "affiliateWrap": "",
   "ghToken": "",
   "telegramToken": "",
   "telegramChatId": ""
