@@ -219,7 +219,7 @@ function rowHtml(it, seen) {
   return `<div class="row ${isNew ? 'new' : ''}">
     <div class="amt ${isPln ? 'pln' : ''}">${esc(it.amountText)}${isPln && it.amountUSD ? `<small>≈ $${it.amountUSD}</small>` : ''}</div>
     <div class="ttl"><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
-      <div class="sub"><span class="chip src-${it.source}">${it.source}</span>${it.org ? `<span>${esc(it.org)}</span>` : ''}${langs}${skillChip}${draftChip}${it.note ? `<span>${esc(it.note)}</span>` : ''}<span>${ago(it.firstSeen)}</span></div>
+      <div class="sub"><span class="chip src-${it.source}">${it.source}</span>${it.org ? `<span>${esc(it.org)}</span>` : ''}${langs}${skillChip}${draftChip}${ageChip(it)}${it.note ? `<span>${esc(it.note)}</span>` : ''}<span title="kiedy radar to wykrył">${ago(it.firstSeen)}</span></div>
     </div>
     <div class="comp">${compTxt}</div>
     <div class="verdict v-${it.verdict}">${vLabel}</div>
@@ -227,6 +227,15 @@ function rowHtml(it, seen) {
       ${STATUSES.map(s => `<option value="${s}" ${s === st ? 'selected' : ''}>${STATUS_LABELS[s]}</option>`).join('')}
     </select></div>
   </div>`;
+}
+
+// realny wiek bounty/ogloszenia: zielony = swieze (<=7 dni), czerwony = wrak (>180 dni)
+function ageChip(it) {
+  if (it.ageDays === null || it.ageDays === undefined) return '';
+  const style = it.ageDays > 180 ? 'color:#e06c75;border-color:#e06c75' : it.ageDays <= 7 ? 'color:var(--green);border-color:var(--green)' : '';
+  const label = it.ageDays === 0 ? 'dziś' : it.ageDays === 1 ? '1 dzień' : `${it.ageDays} dni`;
+  const last = it.lastActivityAt ? ` · ostatni ruch: ${new Date(it.lastActivityAt).toLocaleDateString('pl-PL')}` : '';
+  return `<span class="chip" style="${style}" title="realny wiek bounty/ogłoszenia${last}">🕒 ${label}</span>`;
 }
 
 function bindStatus(list) {

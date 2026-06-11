@@ -200,6 +200,8 @@ function parseIssueUrl(url) {
 function applyGh(it, e) {
   it.competition = { ...it.competition, claims: e.claims, trying: e.prs };
   it.githubState = e.state;
+  if (e.bountyAt) it.bountyAt = e.bountyAt;
+  if (e.lastAt) it.lastActivityAt = e.lastAt;
 }
 
 async function enrichGithub(items, cfg) {
@@ -217,28 +219,42 @@ async function enrichGithub(items, cfg) {
   const now = Date.now();
   for (const it of candidates) {
     const hit = cache[it.url];
-    if (hit && now - hit.ts < ttlMs) { applyGh(it, hit); continue; }
+    if (hit && 'bountyAt' in hit && now - hit.ts < ttlMs) { applyGh(it, hit); continue; }
     if (budget <= 0) { if (hit) applyGh(it, hit); continue; }
     const ref = parseIssueUrl(it.url);
     try {
-      const res = await fetch(
-        `https://api.github.com/repos/${ref.owner}/${ref.repo}/issues/${ref.number}/timeline?per_page=100`,
-        { headers: ghHeaders(cfg) },
-      );
-      budget--;
-      const remaining = Number(res.headers.get('x-ratelimit-remaining'));
-      if (Number.isFinite(remaining) && remaining < 8) budget = 0; // zostaw zapas
-      if (!res.ok) { if (hit) applyGh(it, hit); continue; }
-      const events = await res.json();
-      if (!Array.isArray(events)) continue;
-      let claims = 0, prs = 0, state = 'open';
+      // timeline (do 3 stron z tokenem): konkurencja + data postawienia bounty + ostatni ruch
+      let events = [];
+      const maxPages = cfg.ghToken ? 3 : 1;
+      for (let pg = 1; pg <= maxPages; pg++) {
+        const res = await fetch(
+          `https://api.github.com/repos/${ref.owner}/${ref.repo}/issues/${ref.number}/timeline?per_page=100&page=${pg}`,
+          { headers: ghHeaders(cfg) },
+        );
+        budget--;
+        const remaining = Number(res.headers.get('x-ratelimit-remaining'));
+        if (Number.isFinite(remaining) && remaining < 8) budget = 0; // zostaw zapas
+        if (!res.ok) break;
+        const chunk = await res.json();
+        if (!Array.isArray(chunk)) break;
+        events = events.concat(chunk);
+        if (chunk.length < 100 || budget <= 0) break;
+      }
+      if (!events.length) { if (hit) applyGh(it, hit); continue; }
+      let claims = 0, prs = 0, state = 'open', bountyAt = null, lastAt = null;
       for (const ev of events) {
-        if (ev.event === 'commented' && /\/(claim|attempt|reward)\b/i.test(ev.body || '')) claims++;
+        const ts = ev.created_at || ev.submitted_at || null;
+        if (ts) lastAt = ts;
+        if (ev.event === 'commented') {
+          const actor = ev.actor?.login || '';
+          if (!bountyAt && (/algora|opire/i.test(actor) || /\/bounty\s+\$\d|bounty of \$\d/i.test(ev.body || ''))) bountyAt = ts;
+          if (/\/(claim|attempt|reward)\b/i.test(ev.body || '')) claims++;
+        }
         else if (ev.event === 'cross-referenced' && ev.source?.issue?.pull_request) prs++;
         else if (ev.event === 'closed') state = 'closed';
         else if (ev.event === 'reopened') state = 'open';
       }
-      const entry = { ts: now, claims, prs, state };
+      const entry = { ts: now, claims, prs, state, bountyAt, lastAt };
       cache[it.url] = entry;
       applyGh(it, entry);
     } catch { if (hit) applyGh(it, hit); }
@@ -388,6 +404,12 @@ function applyScore(it, skillsRe) {
   else if (comp <= 7) verdict = 'ok';
   else verdict = 'crowd';
   if (verdict === 'hot' && it.amountUSD !== null && it.amountUSD < 30) verdict = 'ok';
+  // realny wiek bounty/ogloszenia (nie data wykrycia przez radar) + kara za stare wraki
+  const rawT = it.bountyAt ?? it.createdAt;
+  const t = typeof rawT === 'number' ? rawT : (rawT ? Date.parse(rawT) : NaN);
+  it.ageDays = Number.isFinite(t) ? Math.max(0, Math.round((Date.now() - t) / 864e5)) : null;
+  let freshness = 1;
+  if (it.ageDays !== null) freshness = it.ageDays > 365 ? 0.4 : it.ageDays > 180 ? 0.6 : it.ageDays > 60 ? 0.8 : 1;
   // dopasowanie do umiejetnosci uzytkownika (config.skills)
   let matches = 0;
   if (skillsRe) {
@@ -397,8 +419,43 @@ function applyScore(it, skillsRe) {
   const amt = it.amountUSD || 0;
   it.skillMatch = matches;
   it.verdict = verdict;
-  it.score = Math.round((amt / (1 + (comp ?? 4))) * (1 + 0.25 * Math.min(matches, 3)));
+  it.score = Math.round((amt / (1 + (comp ?? 4))) * (1 + 0.25 * Math.min(matches, 3)) * freshness);
   return it;
+}
+
+// Filtr jakosci repo dla nagrod Opire - ten sam prog gwiazdek co wyszukiwarka GitHub
+async function filterRepoQuality(items, cfg) {
+  const minStars = cfg.ghMinStars ?? 30;
+  const repoCachePath = join(DATA, 'repo-cache.json');
+  let repoCache = {};
+  try { repoCache = JSON.parse(await readFile(repoCachePath, 'utf8')); } catch {}
+  const now = Date.now();
+  const weekMs = 7 * 864e5;
+  let lookups = cfg.ghToken ? 50 : 5;
+  const keep = [];
+  for (const it of items) {
+    const m = /github\.com\/([^/]+)\/([^/]+)\//.exec(it.url || '');
+    if (!m) { keep.push(it); continue; } // nie-GitHub (GitLab itp.): zostaw
+    const repoUrl = `https://api.github.com/repos/${m[1]}/${m[2]}`;
+    let rc = repoCache[repoUrl];
+    if ((!rc || now - rc.ts > weekMs) && lookups > 0) {
+      lookups--;
+      try {
+        const rr = await fetch(repoUrl, { headers: ghHeaders(cfg) });
+        const remaining = Number(rr.headers.get('x-ratelimit-remaining'));
+        if (Number.isFinite(remaining) && remaining < 8) lookups = 0;
+        if (rr.ok) {
+          const j = await rr.json();
+          rc = { ts: now, stars: j.stargazers_count || 0, lang: j.language || null, hasDesc: !!(j.description && j.description.trim()) };
+          repoCache[repoUrl] = rc;
+        }
+      } catch {}
+    }
+    if (rc && rc.stars < minStars) continue; // repo-smiec: nagroda niewiarygodna
+    keep.push(it); // gwiazdki nieznane -> zostaw, zweryfikuje sie w kolejnych przebiegach
+  }
+  await writeFile(repoCachePath, JSON.stringify(repoCache, null, 1), 'utf8');
+  return keep;
 }
 
 export async function refreshAll() {
@@ -407,6 +464,7 @@ export async function refreshAll() {
 
   let prev = { items: [] };
   try { prev = JSON.parse(await readFile(join(DATA, 'items.json'), 'utf8')); } catch {}
+
   const prevById = new Map(prev.items.map(i => [i.id, i]));
 
   const [opire, algora, ghb, freelancer, useme, devpost] = await Promise.all([
@@ -418,9 +476,12 @@ export async function refreshAll() {
     fetchDevpost().catch(e => (console.error('[devpost]', e.message), [])),
   ]);
 
+  // Opire nie waliduje nagrod: odsiej "rewardy" z repo-smieci (0 gwiazdek, scam/test)
+  const opireClean = await filterRepoQuality(opire, cfg).catch(e => (console.error('[repo-filter]', e.message), opire));
+
   // dedupe po URL: opire/algora maja pierwszenstwo przed wyszukiwarka GitHub
   const byUrl = new Map();
-  for (const it of [...opire, ...algora, ...ghb, ...freelancer, ...useme, ...devpost]) {
+  for (const it of [...opireClean, ...algora, ...ghb, ...freelancer, ...useme, ...devpost]) {
     if (!byUrl.has(it.url)) byUrl.set(it.url, it);
   }
   const items = [...byUrl.values()];
