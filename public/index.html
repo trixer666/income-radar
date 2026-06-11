@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Income Radar</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #151b23; --panel2: #1b2430;
+    --border: #2a3441; --border2: #3a4756;
+    --text: #dbe4ee; --muted: #7d8c9e; --dim: #56657a;
+    --green: #4ade80; --amber: #fbbf24; --red: #f87171; --blue: #7aa2f7;
+    --mono: Consolas, "Cascadia Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; min-height: 100vh; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  header { display: flex; align-items: baseline; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  h1 { font-size: 19px; font-weight: 650; letter-spacing: .2px; }
+  h1 span { color: var(--muted); font-weight: 400; }
+  .meta { color: var(--muted); font-size: 12.5px; margin-left: auto; display: flex; gap: 12px; align-items: center; }
+  button { background: var(--panel2); color: var(--text); border: 1px solid var(--border2); border-radius: 6px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  button:hover { border-color: var(--blue); }
+  button:disabled { opacity: .5; cursor: wait; }
+
+  nav { display: flex; gap: 6px; margin: 16px 0 14px; }
+  nav button { padding: 6px 16px; border-radius: 7px; font-size: 13.5px; }
+  nav button.on { border-color: var(--blue); color: var(--blue); background: var(--panel); }
+  nav .cnt { color: var(--dim); margin-left: 6px; font-family: var(--mono); font-size: 12px; }
+  nav button.on .cnt { color: var(--blue); opacity: .75; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .filters input, .filters select { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 9px; font: inherit; font-size: 12.5px; }
+  .filters input[type=search] { width: 220px; }
+  .filters label { color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: center; }
+
+  .row { display: grid; grid-template-columns: 92px 1fr 150px 110px 140px; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .row:hover { border-color: var(--border2); }
+  .row.new { border-left: 3px solid var(--blue); }
+  .amt { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--green); }
+  .amt.pln { color: var(--amber); font-size: 13.5px; }
+  .amt small { display: block; font-size: 10.5px; color: var(--dim); font-weight: 400; }
+  .ttl a { color: var(--text); text-decoration: none; font-weight: 550; }
+  .ttl a:hover { color: var(--blue); text-decoration: underline; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--border2); border-radius: 4px; padding: 0 6px; font-size: 11px; color: var(--muted); }
+  .src-opire { color: #b48ead; } .src-algora { color: #88c0d0; } .src-useme { color: #a3be8c; }
+  .src-github { color: #d8a657; } .src-freelancer { color: #e5c07b; } .src-devpost { color: #c678dd; }
+  .comp { font-size: 12px; color: var(--muted); }
+  .comp b { font-family: var(--mono); color: var(--text); }
+  .verdict { font-size: 11.5px; font-weight: 650; border: 1px solid; border-radius: 5px; padding: 2px 8px; text-align: center; width: fit-content; }
+  .v-hot { color: var(--green); border-color: var(--green); }
+  .v-ok { color: var(--amber); border-color: var(--amber); }
+  .v-crowd { color: var(--red); border-color: var(--red); }
+  .v-unknown { color: var(--dim); border-color: var(--border2); }
+  select.status { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 6px; font-size: 12px; width: 100%; }
+
+  .empty { color: var(--muted); padding: 30px 0; text-align: center; }
+
+  .acc { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start; }
+  .acc input[type=checkbox] { width: 17px; height: 17px; margin-top: 2px; accent-color: var(--green); }
+  .acc .nm { font-weight: 600; }
+  .acc .nm a { color: var(--blue); text-decoration: none; }
+  .acc .nm a:hover { text-decoration: underline; }
+  .acc p { color: var(--muted); font-size: 12.5px; margin-top: 3px; max-width: 75ch; }
+  .acc.done { opacity: .55; }
+  .acc.done .nm { text-decoration: line-through; }
+  .sect { color: var(--dim); font-size: 11.5px; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
+  .draft { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+  .draft .hd { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .draft .hd a { color: var(--text); font-weight: 600; text-decoration: none; }
+  .draft .hd a:hover { color: var(--blue); }
+  .draft pre { white-space: pre-wrap; font: 12.5px/1.5 var(--mono); color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-top: 10px; max-height: 360px; overflow: auto; }
+  .draft .acts { display: flex; gap: 8px; margin-top: 8px; }
+
+  @media (max-width: 800px) { .row { grid-template-columns: 80px 1fr; } .row > .comp, .row > .verdict, .row > .stwrap { grid-column: 2; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Income Radar <span>— bounty &amp; zlecenia</span></h1>
+    <div class="meta">
+      <span id="updated">…</span>
+      <span id="paidSum" style="color:var(--green);font-weight:600"></span>
+      <button id="notifBtn" title="Powiadomienia o nowych pozycjach">🔔 Powiadomienia</button>
+      <button id="refreshBtn">Odśwież teraz</button>
+    </div>
+  </header>
+
+  <nav>
+    <button data-tab="bounty" class="on">Bounty<span class="cnt" id="cntBounty">–</span></button>
+    <button data-tab="useme">Zlecenia<span class="cnt" id="cntUseme">–</span></button>
+    <button data-tab="konkursy">Konkursy<span class="cnt" id="cntKonkursy">–</span></button>
+    <button data-tab="agent">Agent<span class="cnt" id="cntAgent">–</span></button>
+    <button data-tab="konta">Konta / start</button>
+  </nav>
+
+  <div class="filters" id="filters">
+    <input type="search" id="q" placeholder="Szukaj w tytułach…">
+    <label>min $ <input type="number" id="minAmt" value="0" style="width:70px"></label>
+    <label>max konkurencja <input type="number" id="maxComp" value="99" style="width:60px"></label>
+    <select id="srcSel">
+      <option value="">wszystkie źródła</option>
+      <option value="opire">Opire</option>
+      <option value="algora">Algora</option>
+      <option value="github">GitHub</option>
+      <option value="useme">Useme</option>
+      <option value="freelancer">Freelancer</option>
+    </select>
+    <select id="sortSel">
+      <option value="score">sortuj: opłacalność</option>
+      <option value="amount">sortuj: kwota</option>
+      <option value="new">sortuj: najnowsze</option>
+    </select>
+    <label><input type="checkbox" id="showHidden"> pokaż ukryte</label>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+const STATUSES = ['', 'obserwuje', 'agent', 'szkic', 'claim', 'PR wyslany', 'wyplacone', 'ukryte'];
+const STATUS_LABELS = { '': '—', 'obserwuje': '👀 obserwuję', 'agent': '🤖 do agenta', 'szkic': '📝 szkic gotowy', 'claim': '🎯 claim', 'PR wyslany': '🔃 PR wysłany', 'wyplacone': '💰 wypłacone', 'ukryte': '🙈 ukryj' };
+const TAB_SRC = { bounty: ['opire', 'algora', 'github'], useme: ['useme', 'freelancer'], konkursy: ['devpost'] };
+const ACCOUNTS = [
+  { sect: 'Automatyzacja (zaloguj się raz — agent działa na Twoich sesjach)' },
+  { id: 'chrome', name: 'Profil Chrome do automatyzacji — uruchom chrome-debug.cmd', url: 'http://127.0.0.1:7777', desc: 'Osobny Chrome (port 9333, profil w data/chrome-profile). Zaloguj się w nim przez Google/GitHub do: Useme, Algora, Opire, Freelancer, Prolific, Devpost. Sesje zostają — agent czyta zalogowane strony i przygotowuje wysyłki; wysyła TYLKO na Twoje polecenie.' },
+  { sect: 'Bounty (kodowanie → wypłata po merge)' },
+  { id: 'gh', name: 'Konto GitHub uporządkowane', url: 'https://github.com', desc: 'Bio, avatar, przypięte repo. Reputacja konta decyduje, czyj PR maintainer w ogóle otworzy.' },
+  { id: 'opire', name: 'Opire — rejestracja', url: 'https://opire.dev', desc: 'Logowanie przez GitHub. Bounty claimujesz komendą /reward w PR. 100% kwoty dla Ciebie.' },
+  { id: 'algora', name: 'Algora — rejestracja', url: 'https://algora.io', desc: 'Logowanie przez GitHub. PR z komendą /claim #issue; AutoPay po merge przez Stripe.' },
+  { id: 'stripe', name: 'Stripe (wypłaty z Algora)', url: 'https://dashboard.stripe.com/register', desc: 'Konto Stripe Express zakładasz przy pierwszej wypłacie — działa w PL.' },
+  { sect: 'Zlecenia / mikrozadania' },
+  { id: 'useme', name: 'Useme — profil wykonawcy', url: 'https://useme.com/pl/', desc: 'Profil + portfolio (screeny paneli NUI robią robotę). Useme rozlicza umową o dzieło — bez firmy.' },
+  { id: 'prolific', name: 'Prolific — rejestracja', url: 'https://app.prolific.com/register/participant', desc: 'Płatne badania, $6–12/h, wypłata PayPal w 24h od £5. Jedyne realne "dziś". Bez AI w ankietach (ban).' },
+  { id: 'paypal', name: 'PayPal zweryfikowany', url: 'https://www.paypal.com/pl', desc: 'Potrzebny do wypłat z Prolific.' },
+  { sect: 'Faza 2 — wyższe stawki' },
+  { id: 'outlier', name: 'Outlier — aplikacja (ścieżka PL)', url: 'https://outlier.ai/languages/pl-pl', desc: 'Trening AI po polsku, do ~$15/h. Onboarding trwa tygodnie — złóż i zapomnij.' },
+  { id: 'n8n', name: 'n8n self-hosted postawiony', url: 'https://docs.n8n.io/hosting/', desc: 'Darmowy. Jeden pokazowy workflow (np. auto-oferty / raporty) = portfolio do sprzedaży automatyzacji firmom ($200–1500/szt.).' },
+];
+
+let DB = { items: [], updatedAt: 0 };
+let STATE = { itemStatus: {}, accounts: {} };
+let DRAFTS = {};
+let tab = 'bounty';
+const $ = id => document.getElementById(id);
+
+const seenKey = 'radar-seen';
+const getSeen = () => new Set(JSON.parse(localStorage.getItem(seenKey) || '[]'));
+const setSeen = s => localStorage.setItem(seenKey, JSON.stringify([...s].slice(-3000)));
+
+function compOf(it) {
+  const c = it.competition || {};
+  if (c.offers !== null && c.offers !== undefined) return c.offers;
+  if (c.claims === null || c.claims === undefined) return null;
+  return c.claims + Math.floor((c.trying || 0) / 2);
+}
+function ago(ts) {
+  if (!ts) return '';
+  const d = Math.floor((Date.now() - ts) / 864e5);
+  return d <= 0 ? 'dziś' : d === 1 ? 'wczoraj' : `${d} dni temu`;
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function render() {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  $('cntAgent').textContent = `${DB.items.filter(i => (STATE.itemStatus[i.id] || '') === 'agent').length}·${Object.keys(DRAFTS).length}`;
+  const paid = Object.values(STATE.ledger || {}).reduce((s, e) => s + (e?.amountUSD || 0), 0);
+  $('paidSum').textContent = paid ? `💰 wypłacone: $${paid.toLocaleString('en-US')}` : '';
+  $('filters').style.display = (tab === 'konta' || tab === 'agent') ? 'none' : 'flex';
+  $('srcSel').style.display = (tab === 'bounty' || tab === 'useme') ? '' : 'none';
+  const list = $('list');
+  if (tab === 'konta') return renderAccounts(list);
+  if (tab === 'agent') return renderAgent(list);
+
+  const q = $('q').value.toLowerCase();
+  const minAmt = Number($('minAmt').value) || 0;
+  const maxComp = Number($('maxComp').value) || 99;
+  const srcF = $('srcSel').value;
+  const showHidden = $('showHidden').checked;
+  const seen = getSeen();
+
+  let items = DB.items.filter(it => (TAB_SRC[tab] || []).includes(it.source));
+  items = items.filter(it => {
+    const st = STATE.itemStatus[it.id] || '';
+    if (st === 'ukryte' && !showHidden) return false;
+    if (srcF && it.source !== srcF) return false;
+    if (q && !it.title.toLowerCase().includes(q) && !(it.org || '').toLowerCase().includes(q)) return false;
+    if ((it.amountUSD || 0) < minAmt) return false;
+    const c = compOf(it);
+    if (c !== null && c > maxComp) return false;
+    return true;
+  });
+  const sort = $('sortSel').value;
+  items.sort((a, b) => sort === 'amount' ? (b.amountUSD || 0) - (a.amountUSD || 0)
+    : sort === 'new' ? (b.firstSeen || 0) - (a.firstSeen || 0)
+    : (b.score || 0) - (a.score || 0));
+
+  if (!items.length) { list.innerHTML = '<div class="empty">Nic nie pasuje do filtrów.</div>'; return; }
+  list.innerHTML = items.map(it => rowHtml(it, seen)).join('');
+  bindStatus(list);
+}
+
+function rowHtml(it, seen) {
+  const c = compOf(it);
+  const isNew = seen ? !seen.has(it.id) : false;
+  const st = STATE.itemStatus[it.id] || '';
+  const compTxt = (it.competition && it.competition.offers !== null && it.competition.offers !== undefined)
+    ? `ofert: <b>${it.competition.offers}</b>`
+    : (c === null ? 'konkurencja: ?' : `claimy: <b>${it.competition.claims}</b> · PRy: <b>${it.competition.trying}</b>`);
+  const vLabel = { hot: 'WARTO', ok: 'OK', crowd: 'TŁOK', unknown: '?' }[it.verdict] || '?';
+  const langs = (it.langs || []).map(l => `<span class="chip">${esc(l)}</span>`).join('');
+  const draftChip = DRAFTS[it.id] ? '<span class="chip" style="color:var(--green);border-color:var(--green)">📝 szkic</span>' : '';
+  const skillChip = (it.skillMatch || 0) > 0 ? '<span class="chip" style="color:var(--blue);border-color:var(--blue)">✦ pasuje</span>' : '';
+  const isPln = it.source === 'useme' || it.source === 'freelancer';
+  return `<div class="row ${isNew ? 'new' : ''}">
+    <div class="amt ${isPln ? 'pln' : ''}">${esc(it.amountText)}${isPln && it.amountUSD ? `<small>≈ $${it.amountUSD}</small>` : ''}</div>
+    <div class="ttl"><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
+      <div class="sub"><span class="chip src-${it.source}">${it.source}</span>${it.org ? `<span>${esc(it.org)}</span>` : ''}${langs}${skillChip}${draftChip}${it.note ? `<span>${esc(it.note)}</span>` : ''}<span>${ago(it.firstSeen)}</span></div>
+    </div>
+    <div class="comp">${compTxt}</div>
+    <div class="verdict v-${it.verdict}">${vLabel}</div>
+    <div class="stwrap"><select class="status" data-id="${esc(it.id)}">
+      ${STATUSES.map(s => `<option value="${s}" ${s === st ? 'selected' : ''}>${STATUS_LABELS[s]}</option>`).join('')}
+    </select></div>
+  </div>`;
+}
+
+function bindStatus(list) {
+  list.querySelectorAll('select.status').forEach(sel => sel.addEventListener('change', async () => {
+    STATE.itemStatus[sel.dataset.id] = sel.value;
+    const it = DB.items.find(i => i.id === sel.dataset.id);
+    const entry = sel.value === 'wyplacone' && it ? { ts: Date.now(), amountUSD: it.amountUSD || 0, title: it.title } : null;
+    if (!STATE.ledger) STATE.ledger = {};
+    if (entry) STATE.ledger[sel.dataset.id] = entry; else delete STATE.ledger[sel.dataset.id];
+    await fetch('/api/state', { method: 'POST', body: JSON.stringify({ itemStatus: { [sel.dataset.id]: sel.value }, ledger: { [sel.dataset.id]: entry } }) });
+    render();
+  }));
+}
+
+function renderAgent(list) {
+  const queued = DB.items.filter(it => (STATE.itemStatus[it.id] || '') === 'agent');
+  const drafts = Object.entries(DRAFTS).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
+  let html = `<div class="sect">W kolejce do agenta (${queued.length})</div>`;
+  html += queued.length
+    ? queued.map(it => rowHtml(it, null)).join('')
+    : '<div class="empty">Pusto. Ustaw przy pozycji status „🤖 do agenta”, potem powiedz agentowi: <b>kolejka</b>.</div>';
+  html += `<div class="sect">Szkice od agenta (${drafts.length})</div>`;
+  html += drafts.length ? drafts.map(([id, d]) => `
+    <div class="draft">
+      <div class="hd">
+        <span class="chip">${esc(d.kind || 'analiza')}</span>
+        <a href="${esc(d.url || '#')}" target="_blank" rel="noopener">${esc(d.title || id)}</a>
+        <span style="color:var(--dim);font-size:11.5px;margin-left:auto">${d.ts ? new Date(d.ts).toLocaleString('pl-PL') : ''}</span>
+      </div>
+      <pre>${esc(d.body || '')}</pre>
+      <div class="acts">
+        <button data-copy="${esc(id)}">Kopiuj</button>
+        <button data-del="${esc(id)}">Usuń szkic</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Brak szkiców.</div>';
+  list.innerHTML = html;
+  bindStatus(list);
+  list.querySelectorAll('button[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    await navigator.clipboard.writeText((DRAFTS[b.dataset.copy] || {}).body || '');
+    b.textContent = 'Skopiowano ✓'; setTimeout(() => { b.textContent = 'Kopiuj'; }, 1500);
+  }));
+  list.querySelectorAll('button[data-del]').forEach(b => b.addEventListener('click', async () => {
+    await fetch('/api/drafts', { method: 'POST', body: JSON.stringify({ [b.dataset.del]: null }) });
+    delete DRAFTS[b.dataset.del];
+    render();
+  }));
+}
+
+function renderAccounts(list) {
+  list.innerHTML = ACCOUNTS.map(a => {
+    if (a.sect) return `<div class="sect">${a.sect}</div>`;
+    const done = !!STATE.accounts[a.id];
+    return `<div class="acc ${done ? 'done' : ''}">
+      <input type="checkbox" data-acc="${a.id}" ${done ? 'checked' : ''}>
+      <div><div class="nm"><a href="${a.url}" target="_blank" rel="noopener">${a.name}</a></div><p>${a.desc}</p></div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('input[data-acc]').forEach(cb => cb.addEventListener('change', async () => {
+    STATE.accounts[cb.dataset.acc] = cb.checked;
+    await fetch('/api/state', { method: 'POST', body: JSON.stringify({ accounts: { [cb.dataset.acc]: cb.checked } }) });
+    render();
+  }));
+}
+
+function notifyNew(items) {
+  if (Notification.permission !== 'granted') return;
+  const seen = getSeen();
+  const fresh = items.filter(it => !seen.has(it.id) && (it.verdict === 'hot' || (it.verdict === 'ok' && (it.amountUSD || 0) >= 100)));
+  for (const it of fresh.slice(0, 3)) {
+    new Notification(`${it.amountText} — ${it.source}`, { body: it.title });
+  }
+}
+
+async function load(first = false) {
+  const r = await fetch('/api/items'); DB = await r.json();
+  const s = await fetch('/api/state'); STATE = await s.json();
+  try { DRAFTS = await (await fetch('/api/drafts')).json(); } catch { DRAFTS = {}; }
+  $('updated').textContent = DB.updatedAt ? `aktualizacja: ${new Date(DB.updatedAt).toLocaleTimeString('pl-PL')}` : 'brak danych';
+  $('cntBounty').textContent = DB.items.filter(i => TAB_SRC.bounty.includes(i.source)).length;
+  $('cntUseme').textContent = DB.items.filter(i => TAB_SRC.useme.includes(i.source)).length;
+  $('cntKonkursy').textContent = DB.items.filter(i => i.source === 'devpost').length;
+  $('cntAgent').textContent = `${DB.items.filter(i => (STATE.itemStatus[i.id] || '') === 'agent').length}·${Object.keys(DRAFTS).length}`;
+  if (!first) notifyNew(DB.items);
+  render();
+  if (first) { const seen = getSeen(); DB.items.forEach(i => seen.add(i.id)); setSeen(seen); }
+}
+
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; render(); }));
+['q', 'minAmt', 'maxComp', 'srcSel', 'sortSel', 'showHidden'].forEach(id => $(id).addEventListener('input', render));
+$('refreshBtn').addEventListener('click', async () => {
+  $('refreshBtn').disabled = true; $('refreshBtn').textContent = 'Pobieram…';
+  try { await fetch('/api/refresh', { method: 'POST' }); await load(); } finally {
+    $('refreshBtn').disabled = false; $('refreshBtn').textContent = 'Odśwież teraz';
+    const seen = getSeen(); DB.items.forEach(i => seen.add(i.id)); setSeen(seen);
+  }
+});
+$('notifBtn').addEventListener('click', async () => {
+  const p = await Notification.requestPermission();
+  $('notifBtn').textContent = p === 'granted' ? '🔔 Włączone' : '🔕 Zablokowane';
+});
+if (Notification.permission === 'granted') $('notifBtn').textContent = '🔔 Włączone';
+
+load(true);
+setInterval(() => load(), 60_000);
+</script>
+</body>
+</html>

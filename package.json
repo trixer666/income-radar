@@ -1,0 +1,10 @@
+{
+  "name": "income-radar",
+  "version": "1.0.0",
+  "description": "Panel: bounty (Opire/Algora) + zlecenia Useme + checklist kont",
+  "type": "module",
+  "scripts": {
+    "fetch": "node fetch.mjs",
+    "start": "node server.mjs"
+  }
+}

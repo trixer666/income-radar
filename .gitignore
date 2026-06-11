@@ -1,0 +1,6 @@
+# dane lokalne: stan, cache, ciasteczka zalogowanego profilu Chrome
+data/
+*.log
+# lokalna konfiguracja (token Telegrama) - publikujemy tylko config.example.json
+config.json
+*.pid
