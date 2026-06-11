@@ -36,7 +36,14 @@ Panel: http://127.0.0.1:7777 (start.cmd). Uzytkownik oznacza pozycje statusem
 - Szkice ofert po polsku; zwiezle, bez lania wody, zero AI-frazesow.
 - Bounty: preferuj male/srednie kwoty z niska konkurencja (verdict WARTO/OK);
   unikaj issue z >2 claimami albo zamknietych (fetcher je odfiltrowuje).
-- Statusy cyklu: `agent` -> `szkic` -> (user) `claim`/`PR wyslany` -> `wyplacone`.
+- Statusy cyklu: `agent` -> `szkic` -> `wyslane` -> `odpowiedz` -> `wygrane`/`przegrane`
+  -> `wyplacone` (ledger). Czas zmiany w `state.statusTs` (follow-up po 3 dniach).
+- AUTO-szkice: serwer sam generuje baze oferty (kind `auto`) dla swiezych pasujacych
+  zlecen useme/freelancer. Przed wyslaniem TRZEBA uzupelnic blok [SPERSONALIZUJ]
+  (1 konkretne pytanie z opisu zlecenia) - wysylka generykow pali konto.
+- Komenda "wyslij kolejke": agent przez CDP (chrome-debug, port 9333) wysyla
+  zaakceptowane przez uzytkownika szkice na Useme/Freelancer - kazda wysylke
+  potwierdza w czacie i ustawia status `wyslane`. Bez akceptacji - nie wysylac.
 
 ## Zalogowane akcje (Chrome CDP)
 

@@ -39,10 +39,46 @@ async function notifyTelegram(payload) {
   lastIds = ids;
 }
 
+// ---------- AUTO-szkice 24/7: serwer sam pisze baze oferty dla swiezych, pasujacych zlecen ----------
+// Szablon wypelniany danymi zlecenia; przed wyslaniem wymaga 30 s personalizacji ([SPERSONALIZUJ]).
+function autoDraftBody(it) {
+  const skills = (it.langs || []).join(', ');
+  if (it.source === 'useme') {
+    const budzet = it.amountText && it.amountText !== '?' ? ` (widelki ogloszenia: ${it.amountText})` : '';
+    return `Dzien dobry,\n\nzajme sie tym: "${it.title}". Robie dokladnie takie rzeczy - automatyzacje, scrapery, boty i panele webowe (Node.js/JavaScript, SQL).\n\nJak pracuje:\n- najpierw doprecyzowuje zakres i podaje stala wycene${budzet}\n- realizacja etapami, podglad postepu na biezaco\n- kod + instrukcja uruchomienia i wsparcie po wdrozeniu\n\nPortfolio: github.com/trixer666 (m.in. income-radar - wlasny system scrapingu i automatyzacji).\n\nPytania:\n1. [SPERSONALIZUJ: 1 konkretne pytanie o zakres z opisu zlecenia]\n2. Jaki termin jest graniczny?\n\nMoge zaczac od razu.\nPozdrawiam, Patryk`;
+  }
+  return `Hi,\n\nI can deliver "${it.title}". I build exactly this kind of work: automation, scrapers, bots and web dashboards (Node.js/JavaScript${skills ? ', ' + skills : ''}).\n\nHow I work:\n- scope confirmation + fixed quote first\n- staged delivery with progress previews\n- clean code + setup instructions + post-delivery support\n\nPortfolio: github.com/trixer666 (incl. income-radar - my own multi-source scraping/automation system).\n\nQuestions:\n1. [PERSONALIZE: one specific scope question from the brief]\n2. What is your hard deadline?\n\nI can start immediately.\nBest, Patryk`;
+}
+
+async function autoDrafts(payload) {
+  if (!payload) return;
+  const drafts = await readJson(DRAFTS, {});
+  const state = await readJson(STATE, { itemStatus: {}, accounts: {}, ledger: {} });
+  let added = 0;
+  for (const it of payload.items) {
+    if (added >= 10) break;
+    if (!['useme', 'freelancer'].includes(it.source)) continue;
+    if (drafts[it.id] || (state.itemStatus[it.id] || '') !== '') continue;
+    const fresh = it.ageDays === null || it.ageDays === undefined || it.ageDays <= 7;
+    const fit = (it.skillMatch || 0) >= 1 && it.verdict !== 'crowd';
+    if (!fresh || !fit) continue;
+    drafts[it.id] = { ts: Date.now(), kind: 'auto', title: it.title, url: it.url, body: autoDraftBody(it) };
+    state.itemStatus[it.id] = 'szkic';
+    state.statusTs = state.statusTs || {};
+    state.statusTs[it.id] = Date.now();
+    added++;
+  }
+  if (added) {
+    await writeFile(DRAFTS, JSON.stringify(drafts, null, 1), 'utf8');
+    await writeFile(STATE, JSON.stringify(state, null, 1), 'utf8');
+    console.log(`[auto-draft] +${added}`);
+  }
+}
+
 function doRefresh() {
   if (!refreshing) {
     refreshing = refreshAll()
-      .then(p => notifyTelegram(p))
+      .then(p => Promise.all([notifyTelegram(p), autoDrafts(p)]))
       .catch(e => console.error('[refresh]', e.message))
       .finally(() => { refreshing = null; });
   }
@@ -83,6 +119,7 @@ const server = http.createServer(async (req, res) => {
         itemStatus: { ...cur.itemStatus, ...(incoming.itemStatus || {}) },
         accounts: { ...cur.accounts, ...(incoming.accounts || {}) },
         ledger: { ...(cur.ledger || {}), ...(incoming.ledger || {}) },
+        statusTs: { ...(cur.statusTs || {}), ...(incoming.statusTs || {}) },
       };
       for (const [k, v] of Object.entries(next.itemStatus)) if (v === null || v === '') delete next.itemStatus[k];
       for (const [k, v] of Object.entries(next.ledger)) if (v === null) delete next.ledger[k];

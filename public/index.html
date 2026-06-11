@@ -85,6 +85,7 @@
       <span id="updated">…</span>
       <span id="paidSum" style="color:var(--green);font-weight:600"></span>
       <span id="tgBadge" style="font-size:12px"></span>
+      <span id="pipeStats" style="font-size:12px;color:var(--muted)"></span>
       <button id="notifBtn" title="Powiadomienia o nowych pozycjach">🔔 Powiadomienia</button>
       <button id="refreshBtn">Odśwież teraz</button>
     </div>
@@ -122,8 +123,8 @@
 </div>
 
 <script>
-const STATUSES = ['', 'obserwuje', 'agent', 'szkic', 'claim', 'PR wyslany', 'wyplacone', 'ukryte'];
-const STATUS_LABELS = { '': '—', 'obserwuje': '👀 obserwuję', 'agent': '🤖 do agenta', 'szkic': '📝 szkic gotowy', 'claim': '🎯 claim', 'PR wyslany': '🔃 PR wysłany', 'wyplacone': '💰 wypłacone', 'ukryte': '🙈 ukryj' };
+const STATUSES = ['', 'obserwuje', 'agent', 'szkic', 'wyslane', 'odpowiedz', 'wygrane', 'przegrane', 'claim', 'PR wyslany', 'wyplacone', 'ukryte'];
+const STATUS_LABELS = { '': '—', 'obserwuje': '👀 obserwuję', 'agent': '🤖 do agenta', 'szkic': '📝 szkic gotowy', 'wyslane': '📤 wysłane', 'odpowiedz': '💬 jest odpowiedź', 'wygrane': '🏆 wygrane', 'przegrane': '✖ przegrane', 'claim': '🎯 claim', 'PR wyslany': '🔃 PR wysłany', 'wyplacone': '💰 wypłacone', 'ukryte': '🙈 ukryj' };
 const TAB_SRC = { bounty: ['opire', 'algora', 'github'], useme: ['useme', 'freelancer'], konkursy: ['devpost'] };
 const ACCOUNTS = [
   { sect: 'Automatyzacja (zaloguj się raz — agent działa na Twoich sesjach)' },
@@ -213,13 +214,15 @@ function rowHtml(it, seen) {
     : (c === null ? 'konkurencja: ?' : `claimy: <b>${it.competition.claims}</b> · PRy: <b>${it.competition.trying}</b>`);
   const vLabel = { hot: 'WARTO', ok: 'OK', crowd: 'TŁOK', unknown: '?' }[it.verdict] || '?';
   const langs = (it.langs || []).map(l => `<span class="chip">${esc(l)}</span>`).join('');
-  const draftChip = DRAFTS[it.id] ? '<span class="chip" style="color:var(--green);border-color:var(--green)">📝 szkic</span>' : '';
+  const draftChip = DRAFTS[it.id] ? (DRAFTS[it.id].kind === 'auto' ? '<span class="chip" style="color:#61afef;border-color:#61afef">🤖 AUTO-szkic</span>' : '<span class="chip" style="color:var(--green);border-color:var(--green)">📝 szkic</span>') : '';
   const skillChip = (it.skillMatch || 0) > 0 ? '<span class="chip" style="color:var(--blue);border-color:var(--blue)">✦ pasuje</span>' : '';
+  const fup = st === 'wyslane' && STATE.statusTs && STATE.statusTs[it.id] && (Date.now() - STATE.statusTs[it.id] > 3 * 864e5)
+    ? '<span class="chip" style="color:#e5a158;border-color:#e5a158">🔔 follow-up</span>' : '';
   const isPln = it.source === 'useme' || it.source === 'freelancer';
   return `<div class="row ${isNew ? 'new' : ''}">
     <div class="amt ${isPln ? 'pln' : ''}">${esc(it.amountText)}${isPln && it.amountUSD ? `<small>≈ $${it.amountUSD}</small>` : ''}</div>
     <div class="ttl"><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
-      <div class="sub"><span class="chip src-${it.source}">${it.source}</span>${it.org ? `<span>${esc(it.org)}</span>` : ''}${langs}${skillChip}${draftChip}${ageChip(it)}${it.note ? `<span>${esc(it.note)}</span>` : ''}<span title="kiedy radar to wykrył">${ago(it.firstSeen)}</span></div>
+      <div class="sub"><span class="chip src-${it.source}">${it.source}</span>${it.org ? `<span>${esc(it.org)}</span>` : ''}${langs}${skillChip}${draftChip}${fup}${ageChip(it)}${it.note ? `<span>${esc(it.note)}</span>` : ''}<span title="kiedy radar to wykrył">${ago(it.firstSeen)}</span></div>
     </div>
     <div class="comp">${compTxt}</div>
     <div class="verdict v-${it.verdict}">${vLabel}</div>
@@ -245,7 +248,9 @@ function bindStatus(list) {
     const entry = sel.value === 'wyplacone' && it ? { ts: Date.now(), amountUSD: it.amountUSD || 0, title: it.title } : null;
     if (!STATE.ledger) STATE.ledger = {};
     if (entry) STATE.ledger[sel.dataset.id] = entry; else delete STATE.ledger[sel.dataset.id];
-    await fetch('/api/state', { method: 'POST', body: JSON.stringify({ itemStatus: { [sel.dataset.id]: sel.value }, ledger: { [sel.dataset.id]: entry } }) });
+    if (!STATE.statusTs) STATE.statusTs = {};
+    STATE.statusTs[sel.dataset.id] = Date.now();
+    await fetch('/api/state', { method: 'POST', body: JSON.stringify({ itemStatus: { [sel.dataset.id]: sel.value }, ledger: { [sel.dataset.id]: entry }, statusTs: { [sel.dataset.id]: Date.now() } }) });
     render();
   }));
 }
@@ -321,6 +326,12 @@ async function load(first = false) {
   $('cntUseme').textContent = DB.items.filter(i => TAB_SRC.useme.includes(i.source)).length;
   $('cntKonkursy').textContent = DB.items.filter(i => i.source === 'devpost').length;
   $('cntAgent').textContent = `${DB.items.filter(i => (STATE.itemStatus[i.id] || '') === 'agent').length}·${Object.keys(DRAFTS).length}`;
+  const stVals = Object.values(STATE.itemStatus || {});
+  const sent = stVals.filter(s => ['wyslane', 'odpowiedz', 'wygrane', 'przegrane', 'wyplacone'].includes(s)).length;
+  const resp = stVals.filter(s => ['odpowiedz', 'wygrane', 'przegrane', 'wyplacone'].includes(s)).length;
+  const won = stVals.filter(s => ['wygrane', 'wyplacone'].includes(s)).length;
+  $('pipeStats').textContent = sent ? `📤 ${sent} · 💬 ${resp} · 🏆 ${won} (${Math.round(100 * won / sent)}%)` : '';
+  $('pipeStats').title = 'pipeline: wysłane · odpowiedzi · wygrane (skuteczność)';
   if (!first) notifyNew(DB.items);
   render();
   if (first) { const seen = getSeen(); DB.items.forEach(i => seen.add(i.id)); setSeen(seen); }
