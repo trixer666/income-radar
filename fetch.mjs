@@ -211,7 +211,7 @@ async function enrichGithub(items, cfg) {
   const candidates = items
     .filter(it => (it.competition?.claims === null || it.competition?.claims === undefined) && parseIssueUrl(it.url))
     .sort((a, b) => (b.amountUSD || 0) - (a.amountUSD || 0))
-    .slice(0, cfg.ghEnrichTop ?? 12);
+    .slice(0, cfg.ghEnrichTop ?? (cfg.ghToken ? 60 : 12));
 
   let budget = cfg.ghBudgetPerRun ?? (cfg.ghToken ? 80 : 15);
   const now = Date.now();
