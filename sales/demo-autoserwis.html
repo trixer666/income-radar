@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MOTOREX — Serwis samochodowy Katowice | DEMO</title>
+<style>
+  :root {
+    --ink: #16181d; --paper: #f4f2ed; --steel: #2a2e36; --line: #d8d4cb;
+    --amber: #e8a020; --amber-d: #c4861a; --muted: #6b6f78;
+    --display: "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--paper); color: var(--ink); font: 16px/1.6 var(--display); }
+  .shell { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* top bar */
+  .bar { background: var(--ink); color: #fff; font-size: 13px; }
+  .bar .shell { display: flex; gap: 24px; padding: 8px 24px; }
+  .bar span { color: #b9bdc6; }
+  .bar b { color: var(--amber); font-weight: 600; }
+  .bar .right { margin-left: auto; }
+
+  nav.main { position: sticky; top: 0; background: rgba(244,242,237,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); z-index: 10; }
+  nav.main .shell { display: flex; align-items: center; gap: 28px; padding: 16px 24px; }
+  .logo { font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+  .logo em { font-style: normal; color: var(--amber-d); }
+  nav.main a { color: var(--ink); text-decoration: none; font-size: 14.5px; font-weight: 500; }
+  nav.main a:hover { color: var(--amber-d); }
+  nav.main .links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
+  .cta { background: var(--ink); color: #fff !important; padding: 10px 20px; border-radius: 4px; font-weight: 600; }
+  .cta:hover { background: var(--steel); color: #fff !important; }
+
+  /* hero */
+  .hero { position: relative; overflow: hidden; background: linear-gradient(112deg, var(--ink) 0 58%, var(--steel) 58% 60%, var(--paper) 60%); color: #fff; }
+  .hero .shell { display: grid; grid-template-columns: 1.1fr .9fr; min-height: 520px; align-items: center; }
+  .hero h1 { font-size: clamp(38px, 5.2vw, 62px); line-height: 1.04; font-weight: 800; letter-spacing: -1.5px; }
+  .hero h1 .am { color: var(--amber); }
+  .hero p.lead { color: #c8ccd4; margin: 22px 0 30px; max-width: 46ch; font-size: 17px; }
+  .hero .btns { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn-a { background: var(--amber); color: var(--ink); padding: 14px 28px; border-radius: 4px; font-weight: 700; text-decoration: none; font-size: 15.5px; }
+  .btn-a:hover { background: #f0b03a; }
+  .btn-g { border: 1px solid #4a4f59; color: #e6e8ec; padding: 14px 28px; border-radius: 4px; font-weight: 600; text-decoration: none; font-size: 15.5px; }
+  .btn-g:hover { border-color: var(--amber); color: var(--amber); }
+  .hero .badge-strip { display: flex; gap: 26px; margin-top: 42px; }
+  .hero .badge-strip div { font-size: 13px; color: #9aa0ab; }
+  .hero .badge-strip b { display: block; font-size: 26px; color: #fff; font-weight: 800; }
+  .hero .art { justify-self: end; align-self: stretch; display: flex; align-items: center; }
+  .gear { width: 320px; height: 320px; opacity: .94; filter: drop-shadow(0 18px 40px rgba(0,0,0,.28)); }
+
+  /* sections */
+  section { padding: 72px 0; }
+  .kicker { color: var(--amber-d); font-weight: 700; text-transform: uppercase; letter-spacing: 2.5px; font-size: 12.5px; }
+  h2 { font-size: clamp(26px, 3.4vw, 38px); font-weight: 800; letter-spacing: -1px; margin: 10px 0 14px; }
+  .sub { color: var(--muted); max-width: 62ch; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 26px 24px; }
+  .card .ic { width: 44px; height: 44px; border-radius: 7px; background: var(--ink); color: var(--amber); display: grid; place-items: center; font-size: 21px; margin-bottom: 16px; }
+  .card h3 { font-size: 17.5px; margin-bottom: 8px; font-weight: 700; }
+  .card p { color: var(--muted); font-size: 14.5px; }
+  .card .price { margin-top: 14px; font-weight: 800; color: var(--ink); font-size: 15px; }
+  .card .price small { color: var(--muted); font-weight: 400; }
+
+  /* why */
+  .why { background: var(--ink); color: #fff; }
+  .why h2 { color: #fff; }
+  .why .grid3 { gap: 0; border: 1px solid #353a44; border-radius: 8px; overflow: hidden; }
+  .why .cell { padding: 30px 26px; border-right: 1px solid #353a44; background: #1c1f26; }
+  .why .cell:last-child { border-right: 0; }
+  .why .cell b { display: block; font-size: 34px; color: var(--amber); font-weight: 800; margin-bottom: 6px; }
+  .why .cell span { color: #aeb3bd; font-size: 14.5px; }
+
+  /* opinions */
+  .op { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+  .op blockquote { background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--amber); border-radius: 6px; padding: 22px; font-size: 14.5px; color: #3a3e46; }
+  .op cite { display: block; margin-top: 14px; font-style: normal; font-weight: 700; font-size: 13.5px; }
+  .op cite span { color: var(--muted); font-weight: 400; }
+  .stars { color: var(--amber-d); letter-spacing: 2px; margin-bottom: 10px; font-size: 13px; }
+
+  /* contact */
+  .contact { background: linear-gradient(0deg, var(--ink) 0 100%); color: #fff; }
+  .contact .shell { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .contact h2 { color: #fff; }
+  .contact .tel { font-size: clamp(30px, 4vw, 44px); font-weight: 800; color: var(--amber); text-decoration: none; display: inline-block; margin: 14px 0; }
+  .contact ul { list-style: none; color: #b9bdc6; font-size: 15px; }
+  .contact li { padding: 7px 0; border-bottom: 1px solid #2e333d; }
+  .contact li b { color: #fff; display: inline-block; min-width: 130px; }
+  .map { background: #232730; border: 1px solid #353a44; border-radius: 8px; height: 290px; display: grid; place-items: center; color: #7d8390; font-size: 14px; }
+
+  footer { background: #101216; color: #7d8390; font-size: 13px; }
+  footer .shell { display: flex; gap: 20px; padding: 22px 24px; }
+  footer .right { margin-left: auto; }
+
+  .demo-tag { position: fixed; bottom: 14px; right: 14px; background: var(--amber); color: var(--ink); font-size: 11.5px; font-weight: 800; padding: 5px 10px; border-radius: 4px; letter-spacing: 1px; z-index: 50; }
+
+  @media (max-width: 900px) {
+    .hero .shell { grid-template-columns: 1fr; padding-top: 48px; padding-bottom: 48px; }
+    .hero { background: var(--ink); }
+    .hero .art { display: none; }
+    .grid3, .op, .contact .shell { grid-template-columns: 1fr; }
+    .why .grid3 { grid-template-columns: 1fr; }
+    .why .cell { border-right: 0; border-bottom: 1px solid #353a44; }
+    nav.main .links a:not(.cta) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="shell">
+    <span>Pn–Pt 8:00–18:00 · Sob 9:00–14:00</span>
+    <span class="right">ul. Przykładowa 12, Katowice · <b>tel. 600 000 000</b></span>
+  </div>
+</div>
+
+<nav class="main">
+  <div class="shell">
+    <div class="logo">MOTO<em>REX</em></div>
+    <div class="links">
+      <a href="#uslugi">Usługi</a>
+      <a href="#dlaczego">Dlaczego my</a>
+      <a href="#opinie">Opinie</a>
+      <a href="#kontakt" class="cta">Umów wizytę</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="shell">
+    <div>
+      <h1>Naprawimy,<br>zanim zdążysz<br>się <span class="am">wkurzyć.</span></h1>
+      <p class="lead">Diagnostyka komputerowa od ręki, uczciwa wycena przed naprawą i części z gwarancją. Bez kombinowania, bez "proszę zostawić auto na dwa tygodnie".</p>
+      <div class="btns">
+        <a class="btn-a" href="#kontakt">Umów wizytę →</a>
+        <a class="btn-g" href="#uslugi">Cennik usług</a>
+      </div>
+      <div class="badge-strip">
+        <div><b>17 lat</b>na rynku</div>
+        <div><b>4.9★</b>opinie Google</div>
+        <div><b>24h</b>typowy czas naprawy</div>
+      </div>
+    </div>
+    <div class="art">
+      <svg class="gear" viewBox="0 0 200 200" fill="none">
+        <g fill="#e8a020">
+          <path d="M100 30l8 18a54 54 0 0 1 14 6l19-6 10 17-13 15a54 54 0 0 1 0 16l13 15-10 17-19-6a54 54 0 0 1-14 6l-8 18h-20l-8-18a54 54 0 0 1-14-6l-19 6-10-17 13-15a54 54 0 0 1 0-16L29 65l10-17 19 6a54 54 0 0 1 14-6l8-18h20z" opacity=".95"/>
+        </g>
+        <circle cx="90" cy="103" r="26" fill="#16181d"/>
+        <circle cx="90" cy="103" r="12" fill="#2a2e36"/>
+        <g fill="#f4f2ed" opacity=".25">
+          <path d="M150 140l5 11a33 33 0 0 1 9 4l12-4 6 11-8 9a33 33 0 0 1 0 10l8 9-6 11-12-4a33 33 0 0 1-9 4l-5 11h-12l-5-11a33 33 0 0 1-9-4l-12 4-6-11 8-9a33 33 0 0 1 0-10l-8-9 6-11 12 4a33 33 0 0 1 9-4l5-11h12z"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<section id="uslugi">
+  <div class="shell">
+    <div class="kicker">Usługi i ceny</div>
+    <h2>Wiesz, za co płacisz — zanim zapłacisz</h2>
+    <p class="sub">Każda naprawa zaczyna się od diagnozy i wyceny SMS-em. Akceptujesz — naprawiamy. Nie akceptujesz — płacisz tylko za diagnostykę.</p>
+    <div class="grid3">
+      <div class="card">
+        <div class="ic">⚙</div>
+        <h3>Diagnostyka komputerowa</h3>
+        <p>Pełny odczyt błędów OBD wszystkich marek, raport na miejscu, kasowanie kontrolek po naprawie.</p>
+        <div class="price">od 100 zł <small>· 30 minut</small></div>
+      </div>
+      <div class="card">
+        <div class="ic">🛞</div>
+        <h3>Zawieszenie i hamulce</h3>
+        <p>Wymiana klocków, tarcz, amortyzatorów, łożysk. Części Bosch / TRW / SACHS z gwarancją 24 mies.</p>
+        <div class="price">od 150 zł <small>+ części</small></div>
+      </div>
+      <div class="card">
+        <div class="ic">🛢</div>
+        <h3>Serwis olejowy i rozrząd</h3>
+        <p>Olej z filtrem w 45 minut, rozrząd z pompą wody w 1 dzień. Wpis do książki serwisowej.</p>
+        <div class="price">od 120 zł <small>+ materiały</small></div>
+      </div>
+      <div class="card">
+        <div class="ic">❄</div>
+        <h3>Klimatyzacja</h3>
+        <p>Nabicie, odgrzybianie ozonem, naprawa szczelności. Czynnik R134a i R1234yf.</p>
+        <div class="price">od 180 zł</div>
+      </div>
+      <div class="card">
+        <div class="ic">🔋</div>
+        <h3>Elektryka i elektronika</h3>
+        <p>Alternatory, rozruszniki, instalacje, czujniki parkowania. Szukanie "zjadania prądu".</p>
+        <div class="price">od 130 zł</div>
+      </div>
+      <div class="card">
+        <div class="ic">🚗</div>
+        <h3>Przegląd przed zakupem</h3>
+        <p>Sprawdzimy auto z ogłoszenia zanim kupisz: lakier, płyta, silnik, OBD. Raport PDF ze zdjęciami.</p>
+        <div class="price">250 zł <small>· oszczędza tysiące</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="why" id="dlaczego">
+  <div class="shell">
+    <div class="kicker">Dlaczego MOTOREX</div>
+    <h2>Warsztat, który traktuje Cię poważnie</h2>
+    <div class="grid3" style="margin-top:34px">
+      <div class="cell"><b>0 zł</b><span>za wycenę — diagnoza i SMS z ceną przed jakąkolwiek naprawą</span></div>
+      <div class="cell"><b>24 mies.</b><span>gwarancji na części i robociznę, na piśmie</span></div>
+      <div class="cell"><b>auto zastępcze</b><span>przy naprawach powyżej 1 dnia — za darmo, po wcześniejszej rezerwacji</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="opinie">
+  <div class="shell">
+    <div class="kicker">Opinie klientów</div>
+    <h2>4.9 / 5 na podstawie 214 opinii Google</h2>
+    <div class="op">
+      <blockquote>
+        <div class="stars">★★★★★</div>
+        Przyjechałem z kontrolką silnika, w 20 minut wiedziałem co i za ile. Naprawa następnego dnia rano. Tak powinien działać każdy warsztat.
+        <cite>Marcin K. <span>· Golf VII</span></cite>
+      </blockquote>
+      <blockquote>
+        <div class="stars">★★★★★</div>
+        Jedyny serwis, który wysłał mi wycenę SMS-em zanim cokolwiek ruszył. Cena z wyceny = cena z faktury, co do złotówki.
+        <cite>Agnieszka W. <span>· Astra K</span></cite>
+      </blockquote>
+      <blockquote>
+        <div class="stars">★★★★★</div>
+        Przegląd przed zakupem uratował mnie przed autem po powodzi. 250 zł, które oszczędziło mi 40 tysięcy.
+        <cite>Tomasz R. <span>· Passat B8</span></cite>
+      </blockquote>
+    </div>
+  </div>
+</section>
+
+<section class="contact" id="kontakt">
+  <div class="shell">
+    <div>
+      <div class="kicker">Kontakt</div>
+      <h2>Umów wizytę dziś</h2>
+      <a class="tel" href="tel:600000000">600 000 000</a>
+      <ul>
+        <li><b>Adres</b> ul. Przykładowa 12, Katowice</li>
+        <li><b>Godziny</b> Pn–Pt 8:00–18:00 · Sob 9:00–14:00</li>
+        <li><b>E-mail</b> serwis@motorex-demo.pl</li>
+        <li><b>Płatność</b> gotówka · karta · BLIK · przelew</li>
+      </ul>
+    </div>
+    <div class="map">[ mapa dojazdu — Google Maps ]</div>
+  </div>
+</section>
+
+<footer>
+  <div class="shell">
+    <span>© 2026 MOTOREX Serwis Samochodowy</span>
+    <span class="right">Strona DEMO — projekt i wykonanie: [TWOJE IMIĘ / KONTAKT]</span>
+  </div>
+</footer>
+
+<div class="demo-tag">DEMO / PORTFOLIO</div>
+
+</body>
+</html>

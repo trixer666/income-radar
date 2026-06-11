@@ -56,9 +56,9 @@ function autoDraftBody(it) {
   const skills = (it.langs || []).join(', ');
   if (it.source === 'useme') {
     const budzet = it.amountText && it.amountText !== '?' ? ` (widelki ogloszenia: ${it.amountText})` : '';
-    return `Dzien dobry,\n\nzajme sie tym: "${it.title}". Robie dokladnie takie rzeczy - automatyzacje, scrapery, boty i panele webowe (Node.js/JavaScript, SQL).\n\nJak pracuje:\n- najpierw doprecyzowuje zakres i podaje stala wycene${budzet}\n- realizacja etapami, podglad postepu na biezaco\n- kod + instrukcja uruchomienia i wsparcie po wdrozeniu\n\nPortfolio: github.com/trixer666 (m.in. income-radar - wlasny system scrapingu i automatyzacji).\n\nPytania:\n1. [SPERSONALIZUJ: 1 konkretne pytanie o zakres z opisu zlecenia]\n2. Jaki termin jest graniczny?\n\nMoge zaczac od razu.\nPozdrawiam, Patryk`;
+    return `Dzien dobry,\n\nzajme sie tym: "${it.title}". Robie dokladnie takie rzeczy - automatyzacje, scrapery, boty i panele webowe (Node.js/JavaScript, SQL).\n\nJak pracuje:\n- najpierw doprecyzowuje zakres i podaje stala wycene${budzet}\n- realizacja etapami, podglad postepu na biezaco\n- kod + instrukcja uruchomienia i wsparcie po wdrozeniu\n\nPortfolio na zywo: trixer666.github.io (kod: github.com/trixer666/income-radar).\n\nPytania:\n1. [SPERSONALIZUJ: 1 konkretne pytanie o zakres z opisu zlecenia]\n2. Jaki termin jest graniczny?\n\nMoge zaczac od razu.\nPozdrawiam, Patryk`;
   }
-  return `Hi,\n\nI can deliver "${it.title}". I build exactly this kind of work: automation, scrapers, bots and web dashboards (Node.js/JavaScript${skills ? ', ' + skills : ''}).\n\nHow I work:\n- scope confirmation + fixed quote first\n- staged delivery with progress previews\n- clean code + setup instructions + post-delivery support\n\nPortfolio: github.com/trixer666 (incl. income-radar - my own multi-source scraping/automation system).\n\nQuestions:\n1. [PERSONALIZE: one specific scope question from the brief]\n2. What is your hard deadline?\n\nI can start immediately.\nBest, Patryk`;
+  return `Hi,\n\nI can deliver "${it.title}". I build exactly this kind of work: automation, scrapers, bots and web dashboards (Node.js/JavaScript${skills ? ', ' + skills : ''}).\n\nHow I work:\n- scope confirmation + fixed quote first\n- staged delivery with progress previews\n- clean code + setup instructions + post-delivery support\n\nLive portfolio: trixer666.github.io/en.html (code: github.com/trixer666/income-radar).\n\nQuestions:\n1. [PERSONALIZE: one specific scope question from the brief]\n2. What is your hard deadline?\n\nI can start immediately.\nBest, Patryk`;
 }
 
 async function autoDrafts(payload) {
@@ -111,6 +111,12 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname === '/' || url.pathname === '/index.html') {
       return send(res, 200, await readFile(join(ROOT, 'public', 'index.html')), 'text/html');
+    }
+    // materialy sprzedazowe (demo dla klienta, oferta PDF, skrypty outreachu)
+    if (url.pathname.startsWith('/sales/')) {
+      const name = url.pathname.slice('/sales/'.length);
+      if (!/^[\w.-]+\.(html|md)$/.test(name)) return send(res, 404, { error: 'not found' });
+      return send(res, 200, await readFile(join(ROOT, 'sales', name)), name.endsWith('.html') ? 'text/html' : 'text/plain');
     }
     if (url.pathname === '/api/items') {
       const data = await readJson(ITEMS, { updatedAt: 0, counts: {}, items: [] });

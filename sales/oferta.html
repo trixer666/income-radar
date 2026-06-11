@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oferta — strona internetowa dla Twojej firmy</title>
+<style>
+  /* jednostronicowka ofertowa: Ctrl+P -> PDF (A4) */
+  :root { --ink: #1a1d23; --amber: #c4861a; --line: #e2ddd2; --muted: #6b6f78; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #888; font: 14px/1.55 "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+  .page { width: 210mm; min-height: 297mm; margin: 18px auto; background: #fff; padding: 16mm 17mm; box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; box-shadow: none; width: auto; min-height: auto; }
+    @page { size: A4; margin: 0; }
+  }
+
+  header { display: flex; align-items: baseline; border-bottom: 3px solid var(--ink); padding-bottom: 12px; }
+  .brand { font-size: 21px; font-weight: 800; letter-spacing: -.4px; }
+  .brand em { font-style: normal; color: var(--amber); }
+  header .who { margin-left: auto; text-align: right; font-size: 12.5px; color: var(--muted); }
+  header .who b { color: var(--ink); }
+
+  h1 { font-size: 27px; font-weight: 800; letter-spacing: -.8px; margin: 26px 0 8px; }
+  .lead { color: var(--muted); max-width: 70ch; font-size: 14.5px; }
+
+  .pain { margin: 20px 0 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pain div { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; font-size: 13px; }
+  .pain b { display: block; margin-bottom: 3px; font-size: 13.5px; }
+
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 2px; color: var(--amber); margin: 26px 0 12px; font-weight: 700; }
+
+  .tiers { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .tier { border: 1px solid var(--line); border-radius: 8px; padding: 16px; position: relative; }
+  .tier.hl { border: 2px solid var(--ink); }
+  .tier .tag { position: absolute; top: -9px; left: 14px; background: var(--ink); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 2px 8px; border-radius: 3px; }
+  .tier h3 { font-size: 15px; font-weight: 750; }
+  .tier .pr { font-size: 23px; font-weight: 800; margin: 8px 0 2px; }
+  .tier .pr small { font-size: 11.5px; color: var(--muted); font-weight: 400; }
+  .tier ul { list-style: none; margin-top: 10px; }
+  .tier li { font-size: 12.5px; padding: 3.5px 0 3.5px 16px; position: relative; color: #3a3e46; }
+  .tier li::before { content: "✓"; position: absolute; left: 0; color: var(--amber); font-weight: 700; }
+
+  .steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .step { font-size: 12.5px; color: #3a3e46; }
+  .step b { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink); margin-bottom: 4px; }
+  .step .n { width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; flex: none; }
+
+  .guarantee { border: 1px dashed var(--amber); border-radius: 8px; padding: 13px 16px; font-size: 13px; margin-top: 8px; }
+  .guarantee b { color: var(--amber); }
+
+  footer { margin-top: 26px; border-top: 3px solid var(--ink); padding-top: 14px; display: flex; align-items: center; }
+  footer .cta { font-size: 16px; font-weight: 750; }
+  footer .cta span { color: var(--amber); }
+  footer .contact { margin-left: auto; text-align: right; font-size: 13px; }
+  footer .contact b { font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="brand">[TWOJA <em>MARKA</em>]</div>
+    <div class="who"><b>[Imię i nazwisko]</b><br>strony internetowe · automatyzacje<br>[telefon] · [e-mail]</div>
+  </header>
+
+  <h1>Profesjonalna strona dla Twojej firmy.<br>Gotowa w 3 dni, od 690 zł.</h1>
+  <p class="lead">7 na 10 klientów sprawdza firmę w Google zanim zadzwoni. Jeśli nie masz strony — albo masz taką z 2015 roku — ci klienci dzwonią do konkurencji. Naprawiam to w 3 dni robocze, bez umów abonamentowych i bez "pozycjonowania" za 500 zł/mies.</p>
+
+  <div class="pain">
+    <div><b>Nie masz strony?</b> Twoja wizytówka Google prowadzi donikąd, a klienci nie mają gdzie sprawdzić cennika i godzin.</div>
+    <div><b>Masz starą stronę?</b> Na telefonie się rozjeżdża, ładuje się 8 sekund i straszy fontem Comic Sans. To kosztuje Cię klientów codziennie.</div>
+  </div>
+
+  <h2>Pakiety — cena z góry, bez gwiazdek</h2>
+  <div class="tiers">
+    <div class="tier">
+      <h3>START</h3>
+      <div class="pr">690 zł <small>jednorazowo</small></div>
+      <ul>
+        <li>strona-wizytówka (1 podstrona)</li>
+        <li>cennik, godziny, mapa, telefon klikalny</li>
+        <li>wygląda idealnie na telefonie</li>
+        <li>gotowa w 3 dni robocze</li>
+      </ul>
+    </div>
+    <div class="tier hl">
+      <div class="tag">NAJCZĘŚCIEJ WYBIERANY</div>
+      <h3>FIRMA</h3>
+      <div class="pr">1 290 zł <small>jednorazowo</small></div>
+      <ul>
+        <li>wszystko ze START</li>
+        <li>do 4 podstron (oferta, galeria, kontakt)</li>
+        <li>konfiguracja wizytówki Google Maps</li>
+        <li>formularz kontaktowy na Twój e-mail</li>
+        <li>podpięcie domeny i poczty firmowej</li>
+      </ul>
+    </div>
+    <div class="tier">
+      <h3>AUTOMAT</h3>
+      <div class="pr">od 890 zł <small>wycena indywidualna</small></div>
+      <ul>
+        <li>automatyzacje: oferty, raporty, maile</li>
+        <li>integracje AI (odpowiedzi, opisy, analiza)</li>
+        <li>boty rezerwacji / powiadomień</li>
+        <li>oszczędność: godziny pracy tygodniowo</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Jak to wygląda</h2>
+  <div class="steps">
+    <div class="step"><b><span class="n">1</span> Rozmowa — 15 minut</b>Mówisz czym się zajmujesz i co ma być na stronie. Może być telefonicznie.</div>
+    <div class="step"><b><span class="n">2</span> Projekt — 2 dni</b>Dostajesz link z gotową stroną do obejrzenia na swoim telefonie. Poprawki w cenie.</div>
+    <div class="step"><b><span class="n">3</span> Start — 3. dzień</b>Strona idzie w świat pod Twoją domeną. Płacisz dopiero, gdy akceptujesz efekt.</div>
+  </div>
+
+  <div class="guarantee"><b>Zero ryzyka:</b> najpierw widzisz gotowy projekt, potem płacisz. Nie podoba się — nie płacisz i rozchodzimy się bez faktury. Rozliczenie umową o dzieło albo na firmę.</div>
+
+  <footer>
+    <div class="cta">Zobacz przykład: <span>[link do demo]</span></div>
+    <div class="contact">Zadzwoń lub napisz<br><b>[telefon]</b></div>
+  </footer>
+
+</div>
+</body>
+</html>
