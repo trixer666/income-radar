@@ -84,6 +84,7 @@
     <div class="meta">
       <span id="updated">…</span>
       <span id="paidSum" style="color:var(--green);font-weight:600"></span>
+      <span id="tgBadge" style="font-size:12px"></span>
       <button id="notifBtn" title="Powiadomienia o nowych pozycjach">🔔 Powiadomienia</button>
       <button id="refreshBtn">Odśwież teraz</button>
     </div>
@@ -304,6 +305,9 @@ async function load(first = false) {
   const s = await fetch('/api/state'); STATE = await s.json();
   try { DRAFTS = await (await fetch('/api/drafts')).json(); } catch { DRAFTS = {}; }
   $('updated').textContent = DB.updatedAt ? `aktualizacja: ${new Date(DB.updatedAt).toLocaleTimeString('pl-PL')}` : 'brak danych';
+  $('tgBadge').textContent = DB.tg ? '🔔 Telegram ON' : '🔕 Telegram OFF';
+  $('tgBadge').style.color = DB.tg ? 'var(--green)' : '#e5a158';
+  $('tgBadge').title = DB.tg ? 'Alerty Telegram aktywne' : 'Wpisz telegramToken i telegramChatId w config.json (BotFather → /newbot) — alerty o świeżych okazjach bez otwartej przeglądarki';
   $('cntBounty').textContent = DB.items.filter(i => TAB_SRC.bounty.includes(i.source)).length;
   $('cntUseme').textContent = DB.items.filter(i => TAB_SRC.useme.includes(i.source)).length;
   $('cntKonkursy').textContent = DB.items.filter(i => i.source === 'devpost').length;

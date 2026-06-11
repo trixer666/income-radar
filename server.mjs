@@ -15,18 +15,24 @@ const DRAFTS = join(ROOT, 'data', 'drafts.json');
 let refreshing = null;
 let lastIds = null;
 
+// swiezy config bez restartu (token Telegrama mozna dopisac w locie)
+async function freshCfg() {
+  try { return JSON.parse(await readFile(join(ROOT, 'config.json'), 'utf8')); } catch { return cfg; }
+}
+
 // powiadomienia Telegram o swiezych okazjach (dziala przy zamknietej przegladarce)
 async function notifyTelegram(payload) {
-  if (!cfg.telegramToken || !cfg.telegramChatId || !payload) return;
+  const c = await freshCfg();
+  if (!c.telegramToken || !c.telegramChatId || !payload) return;
   const ids = new Set(payload.items.map(i => i.id));
   if (lastIds) {
     const fresh = payload.items.filter(i => !lastIds.has(i.id)
       && (i.verdict === 'hot' || (i.verdict === 'ok' && (i.amountUSD || 0) >= 100) || (i.skillMatch || 0) >= 2));
     for (const it of fresh.slice(0, 5)) {
-      await fetch(`https://api.telegram.org/bot${cfg.telegramToken}/sendMessage`, {
+      await fetch(`https://api.telegram.org/bot${c.telegramToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: cfg.telegramChatId, text: `${it.amountText} · ${it.source}\n${it.title}\n${it.url}`, disable_web_page_preview: true }),
+        body: JSON.stringify({ chat_id: c.telegramChatId, text: `${it.amountText} · ${it.source}\n${it.title}\n${it.url}`, disable_web_page_preview: true }),
       }).catch(e => console.error('[telegram]', e.message));
     }
   }
@@ -60,7 +66,10 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, await readFile(join(ROOT, 'public', 'index.html')), 'text/html');
     }
     if (url.pathname === '/api/items') {
-      return send(res, 200, await readJson(ITEMS, { updatedAt: 0, counts: {}, items: [] }));
+      const data = await readJson(ITEMS, { updatedAt: 0, counts: {}, items: [] });
+      const c = await freshCfg();
+      data.tg = !!(c.telegramToken && c.telegramChatId);
+      return send(res, 200, data);
     }
     if (url.pathname === '/api/state' && req.method === 'GET') {
       return send(res, 200, await readJson(STATE, { itemStatus: {}, accounts: {}, ledger: {} }));

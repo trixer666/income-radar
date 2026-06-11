@@ -44,10 +44,17 @@ async function fetchTextCurl(url) {
   return stdout;
 }
 
+// Naglowki GitHub API; z tokenem (config.ghToken) limit rosnie z 60 do 5000 req/h
+function ghHeaders(cfg) {
+  const h = { 'User-Agent': UA, 'Accept': 'application/vnd.github+json' };
+  if (cfg.ghToken) h.Authorization = `Bearer ${cfg.ghToken}`;
+  return h;
+}
+
 // ---------- Opire (public JSON API) ----------
 async function fetchOpire(cfg) {
   const items = [];
-  for (let page = 1; page <= cfg.opirePages; page++) {
+  for (let page = 1; page <= (cfg.opirePages ?? cfg.opireMaxPages ?? 3); page++) {
     let rows;
     try {
       const res = await fetch(`https://api.opire.dev/rewards?page=${page}`, { headers: { 'User-Agent': UA } });
@@ -206,7 +213,7 @@ async function enrichGithub(items, cfg) {
     .sort((a, b) => (b.amountUSD || 0) - (a.amountUSD || 0))
     .slice(0, cfg.ghEnrichTop ?? 12);
 
-  let budget = cfg.ghBudgetPerRun ?? 15;
+  let budget = cfg.ghBudgetPerRun ?? (cfg.ghToken ? 80 : 15);
   const now = Date.now();
   for (const it of candidates) {
     const hit = cache[it.url];
@@ -216,7 +223,7 @@ async function enrichGithub(items, cfg) {
     try {
       const res = await fetch(
         `https://api.github.com/repos/${ref.owner}/${ref.repo}/issues/${ref.number}/timeline?per_page=100`,
-        { headers: { 'User-Agent': UA, 'Accept': 'application/vnd.github+json' } },
+        { headers: ghHeaders(cfg) },
       );
       budget--;
       const remaining = Number(res.headers.get('x-ratelimit-remaining'));
@@ -249,7 +256,7 @@ async function fetchGithubBounties(cfg) {
   try { repoCache = JSON.parse(await readFile(repoCachePath, 'utf8')); } catch {}
   const now = Date.now();
   const weekMs = 7 * 864e5;
-  let lookups = cfg.ghRepoLookupsPerRun ?? 8;
+  let lookups = cfg.ghRepoLookupsPerRun ?? (cfg.ghToken ? 40 : 8);
   const blockOrgs = new Set((cfg.ghBlockOrgs || []).map(s => s.toLowerCase()));
   const perRepo = new Map();
   const out = [];
@@ -258,7 +265,7 @@ async function fetchGithubBounties(cfg) {
     let rows;
     try {
       const res = await fetch(`https://api.github.com/search/issues?q=${q}&sort=created&order=desc&per_page=30`,
-        { headers: { 'User-Agent': UA, 'Accept': 'application/vnd.github+json' } });
+        { headers: ghHeaders(cfg) });
       if (!res.ok) continue;
       rows = (await res.json()).items || [];
     } catch { continue; }
@@ -271,7 +278,7 @@ async function fetchGithubBounties(cfg) {
       if ((!rc || rc.hasDesc === undefined || now - rc.ts > weekMs) && lookups > 0) {
         lookups--;
         try {
-          const rr = await fetch(repoUrl, { headers: { 'User-Agent': UA, 'Accept': 'application/vnd.github+json' } });
+          const rr = await fetch(repoUrl, { headers: ghHeaders(cfg) });
           const remaining = Number(rr.headers.get('x-ratelimit-remaining'));
           if (Number.isFinite(remaining) && remaining < 10) lookups = 0;
           if (rr.ok) {
