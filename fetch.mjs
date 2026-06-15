@@ -1,9 +1,11 @@
 // income-radar fetcher: Opire API + Algora org pages + Useme listings -> data/items.json
+// + Upwork RSS, HackerOne community bounty list, Fiverr (best-effort), Airdrops RSS
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createHash } from 'node:crypto';
 
 const execFileAsync = promisify(execFile);
 
@@ -27,6 +29,46 @@ function stripTags(html) {
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
     .replace(/\s+/g, ' ').trim();
+}
+
+// Krotki, deterministyczny hash do generowania ID dla zrodel bez stabilnego ID
+function hash8(s) {
+  return createHash('sha1').update(String(s)).digest('hex').slice(0, 10);
+}
+
+// Dekoduje najczestsze encje HTML/XML
+function decodeEntities(s) {
+  return String(s || '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+// Pojedyncze pole w bloku RSS - obsluga CDATA i zwyklego tekstu
+function rssField(block, tag) {
+  const re = new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([\\s\\S]*?))<\\/${tag}>`, 'i');
+  const m = block.match(re);
+  if (!m) return '';
+  return (m[1] !== undefined ? m[1] : m[2] || '').trim();
+}
+
+// Parser RSS 2.0 bez zaleznosci - tylko pola ktore nas interesuja
+function parseRssItems(xml) {
+  const items = [];
+  const re = /<item[\s>][\s\S]*?<\/item>/g;
+  let m;
+  while ((m = re.exec(xml)) !== null) {
+    const block = m[0];
+    items.push({
+      title: decodeEntities(rssField(block, 'title')),
+      link: decodeEntities(rssField(block, 'link')),
+      description: rssField(block, 'description'),
+      pubDate: rssField(block, 'pubDate'),
+    });
+  }
+  return items;
 }
 
 async function fetchText(url) {
@@ -392,8 +434,207 @@ async function fetchDevpost() {
   });
 }
 
+// ---------- Upwork (scraping publicznej wyszukiwarki — RSS zlikwidowane 2024) ----------
+async function fetchUpwork(cfg) {
+  const queries = cfg.upworkQueries || [];
+  const out = [];
+  const seen = new Set();
+  for (const q of queries) {
+    try {
+      // Publiczna strona search — curl omija Cloudflare lepiej niz node fetch
+      const url = `https://www.upwork.com/nx/search/jobs/?q=${encodeURIComponent(q)}&sort=recency&per_page=10`;
+      const html = await fetchTextCurl(url);
+      // Upwork renderuje danych w JSON wewnatrz <script> — szukamy serializowanego stanu
+      const stateM = html.match(/<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+      if (!stateM) {
+        // Fallback: szukaj linkow do jobow w HTML
+        const links = [...html.matchAll(/href="(\/jobs\/[^"?]+)/g)].map(m => m[1]);
+        const titles = [...html.matchAll(/data-test="job-tile-title"[^>]*>([^<]+)/g)].map(m => decodeEntities(m[1]));
+        for (let i = 0; i < Math.min(links.length, titles.length, 10); i++) {
+          const tHash = hash8(titles[i]);
+          if (seen.has(tHash)) continue;
+          seen.add(tHash);
+          out.push({
+            id: `upwork:${tHash}`,
+            source: 'upwork',
+            title: titles[i].slice(0, 160),
+            url: `https://www.upwork.com${links[i]}`,
+            amountUSD: null,
+            amountText: '?',
+            langs: [],
+            competition: { claims: null, trying: null, offers: null },
+            createdAt: null,
+            org: null,
+          });
+        }
+        if (!links.length) console.log(`[upwork:${q}] JS-rendered, scraping limited`);
+        continue;
+      }
+      // Parse __NEXT_DATA__ JSON
+      try {
+        const nd = JSON.parse(stateM[1]);
+        const jobs = nd?.props?.pageProps?.searchResults?.jobs || [];
+        for (const j of jobs.slice(0, 10)) {
+          const title = j.title || '';
+          const tHash = hash8(title);
+          if (seen.has(tHash)) continue;
+          seen.add(tHash);
+          let amountUSD = null, amountText = '?';
+          if (j.amount?.amount) {
+            amountUSD = Math.round(Number(j.amount.amount));
+            amountText = `$${amountUSD.toLocaleString('en-US')}`;
+          } else if (j.hourlyBudget?.min != null) {
+            const lo = Number(j.hourlyBudget.min);
+            const hi = Number(j.hourlyBudget.max || lo);
+            amountUSD = Math.round(hi * 40);
+            amountText = `$${lo}-$${hi}/h`;
+          }
+          const langs = (j.skills || j.attrs?.skills || []).map(s => typeof s === 'string' ? s : (s.name || s.prettyName || '')).filter(Boolean).slice(0, 6);
+          const proposals = j.proposalCount ?? j.totalApplicants ?? null;
+          out.push({
+            id: `upwork:${tHash}`,
+            source: 'upwork',
+            title: title.slice(0, 160),
+            url: j.ciphertext ? `https://www.upwork.com/jobs/${j.ciphertext}` : `https://www.upwork.com/jobs/~${j.id || tHash}`,
+            amountUSD,
+            amountText,
+            langs,
+            competition: { claims: null, trying: null, offers: proposals },
+            createdAt: j.createdOn ? Date.parse(j.createdOn) : null,
+            org: null,
+          });
+        }
+      } catch { /* zepsuta struktura NEXT_DATA, pomijamy */ }
+    } catch (e) {
+      console.error(`[upwork:${q}] ${e.message}`);
+    }
+  }
+  return out;
+}
+
+// ---------- HackerOne / Bug Bounty (lista z GitHub, publiczna i bez auth) ----------
+async function fetchHackerOneBounties(_cfg) {
+  // Probujemy kilka znanych lokalizacji listy bug bounty programow
+  const urls = [
+    'https://raw.githubusercontent.com/projectdiscovery/public-bugbounty-programs/main/chaos-bugbounty-list.json',
+    'https://raw.githubusercontent.com/projectdiscovery/public-bugbounty-programs/master/chaos-bugbounty-list.json',
+    'https://raw.githubusercontent.com/arkadiyt/bounty-targets-data/main/data/hackerone_data.json',
+  ];
+  for (const url of urls) {
+    try {
+      const raw = await fetchText(url);
+      const data = JSON.parse(raw);
+      // Obsluga obu formatow: {programs:[...]} lub [{...}]
+      const programs = Array.isArray(data.programs) ? data.programs : (Array.isArray(data) ? data : []);
+      if (!programs.length) continue;
+      const bountyProgs = programs.filter(p => p && (p.bounty || p.offers_bounties) && (p.url || p.handle));
+      return bountyProgs.slice(-40).reverse().slice(0, 25).map(p => {
+        const name = p.name || p.handle || (p.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+        const domCount = Array.isArray(p.domains) ? p.domains.length : (p.targets?.in_scope?.length || 0);
+        const pUrl = p.url || (p.handle ? `https://hackerone.com/${p.handle}` : '');
+        return {
+          id: `h1bounty:${hash8(pUrl || name)}`,
+          source: 'h1bounty',
+          title: `${name} - bug bounty${domCount ? ` (${domCount} domen)` : ''}`.slice(0, 160),
+          url: pUrl,
+          amountUSD: null,
+          amountText: p.swag ? 'Bounty + swag' : 'Bounty',
+          langs: ['security', 'bug-bounty'],
+          competition: { claims: null, trying: null, offers: null },
+          createdAt: null,
+          org: name,
+        };
+      });
+    } catch (e) {
+      console.error(`[h1bounty] ${e.message} for ${url}`);
+    }
+  }
+  console.error('[h1bounty] all sources failed');
+  return [];
+}
+
+// ---------- Fiverr (best-effort scrape; w wiekszosci JS-rendered) ----------
+async function fetchFiverrBuyerGigs(cfg) {
+  const queries = cfg.fiverrQueries || [];
+  const out = [];
+  const seen = new Set();
+  for (const q of queries) {
+    try {
+      const url = `https://www.fiverr.com/search/gigs?query=${encodeURIComponent(q)}&source=top-bar&search_in=everywhere&search-autocomplete-original-term=${encodeURIComponent(q)}`;
+      let html;
+      try { html = await fetchTextCurl(url); }
+      catch (e) { console.log(`[fiverr:${q}] JS-rendered, skipping (${e.message})`); continue; }
+      // anchor do oferty: dwusegmentowa sciezka /<seller>/<gig-slug>, czesto z atrybutem trackingowym
+      const gigRe = /href="(\/[a-z0-9_-]+\/[a-z0-9][a-z0-9-]{6,})"/gi;
+      const found = [];
+      let m;
+      while ((m = gigRe.exec(html)) !== null) {
+        const path = m[1];
+        if (seen.has(path)) continue;
+        // odsiej linki nawigacyjne typu /categories/...
+        if (/^\/(categories|cp|help|gigs|landing|inspire|business|pro|logo-maker|studio)\b/.test(path)) continue;
+        seen.add(path);
+        found.push(path);
+        if (found.length >= 12) break;
+      }
+      if (found.length === 0) { console.log(`[fiverr:${q}] JS-rendered, skipping (brak gigow w HTML)`); continue; }
+      for (const path of found) {
+        const slug = path.split('/').pop().replace(/-/g, ' ');
+        out.push({
+          id: `fiverr:${hash8(path)}`,
+          source: 'fiverr',
+          title: `Fiverr [${q}]: ${slug}`.slice(0, 160),
+          url: `https://www.fiverr.com${path}`,
+          amountUSD: null,
+          amountText: '?',
+          langs: [q],
+          competition: { claims: null, trying: null, offers: null },
+          createdAt: null,
+          org: null,
+        });
+      }
+    } catch (e) {
+      console.error(`[fiverr:${q}] ${e.message}`);
+    }
+  }
+  return out;
+}
+
+// ---------- Airdrops.io (RSS z bezplatnymi airdropami / testnetami) ----------
+async function fetchAirdrops(cfg) {
+  if (cfg.airdropEnabled === false) return [];
+  try {
+    const xml = await fetchText('https://airdrops.io/feed/');
+    const items = parseRssItems(xml).slice(0, 15);
+    return items.filter(it => it.title && it.link).map(it => ({
+      id: `airdrop:${hash8(it.link)}`,
+      source: 'airdrop',
+      title: it.title.slice(0, 160),
+      url: it.link,
+      amountUSD: 0,
+      amountText: 'Airdrop',
+      langs: ['crypto', 'airdrop'],
+      competition: { claims: null, trying: null, offers: null },
+      createdAt: it.pubDate ? (Date.parse(it.pubDate) || null) : null,
+      org: null,
+    }));
+  } catch (e) {
+    console.error(`[airdrop] ${e.message}`);
+    return [];
+  }
+}
+
 // ---------- scoring ----------
-function applyScore(it, skillsRe) {
+function applyScore(it, skillsRe, repoCache) {
+  // Zrodla informacyjne (bez konkurencji / kwoty) - stale punkty bazowe
+  if (it.source === 'airdrop') {
+    it.verdict = 'unknown'; it.skillMatch = 0; it.ageDays = null;
+    it.repoHealth = null; it.score = 30; return it;
+  }
+  if (it.source === 'h1bounty') {
+    it.verdict = 'unknown'; it.skillMatch = 0; it.ageDays = null;
+    it.repoHealth = null; it.score = 50; return it;
+  }
   const c = it.competition || {};
   let comp = null;
   if (c.offers !== null && c.offers !== undefined) comp = c.offers;
@@ -419,7 +660,27 @@ function applyScore(it, skillsRe) {
   const amt = it.amountUSD || 0;
   it.skillMatch = matches;
   it.verdict = verdict;
-  it.score = Math.round((amt / (1 + (comp ?? 4))) * (1 + 0.25 * Math.min(matches, 3)) * freshness);
+  let score = (amt / (1 + (comp ?? 4))) * (1 + 0.25 * Math.min(matches, 3)) * freshness;
+  // bonus/kara od kondycji repo - dotyczy zrodel z linkiem do GitHub issue
+  let repoHealth = null;
+  if (repoCache && (it.source === 'opire' || it.source === 'algora' || it.source === 'github')) {
+    const m = /github\.com\/([^/]+)\/([^/]+)\//.exec(it.url || '');
+    if (m) {
+      const rc = repoCache[`https://api.github.com/repos/${m[1]}/${m[2]}`];
+      if (rc) {
+        if (rc.archived) { score *= 0.1; repoHealth = 'archived'; }
+        else if (rc.pushedAt) {
+          const ageDays = (Date.now() - Date.parse(rc.pushedAt)) / 864e5;
+          if (ageDays <= 30) { score *= 1.3; repoHealth = 'active'; }
+          else if (ageDays <= 90) { score *= 1.1; repoHealth = 'active'; }
+          else if (ageDays > 180) { score *= 0.5; repoHealth = 'stale'; }
+        }
+        if ((rc.forks || 0) > 50) score *= 1.1;
+      }
+    }
+  }
+  it.repoHealth = repoHealth;
+  it.score = Math.round(score);
   return it;
 }
 
@@ -446,13 +707,12 @@ async function filterRepoQuality(items, cfg) {
         if (Number.isFinite(remaining) && remaining < 8) lookups = 0;
         if (rr.ok) {
           const j = await rr.json();
-          rc = { ts: now, stars: j.stargazers_count || 0, lang: j.language || null, hasDesc: !!(j.description && j.description.trim()) };
+          rc = { ts: now, stars: j.stargazers_count || 0, lang: j.language || null, hasDesc: !!(j.description && j.description.trim()), pushedAt: j.pushed_at || null, openIssues: j.open_issues_count || 0, archived: !!j.archived, forks: j.forks_count || 0 };
           repoCache[repoUrl] = rc;
         }
       } catch {}
     }
-    if (rc && rc.stars < minStars) continue; // repo-smiec: nagroda niewiarygodna
-    keep.push(it); // gwiazdki nieznane -> zostaw, zweryfikuje sie w kolejnych przebiegach
+    if (rc && (rc.archived || rc.stars < minStars)) continue; // repo-smiec lub porzucony: nagroda niewiarygodna
   }
   await writeFile(repoCachePath, JSON.stringify(repoCache, null, 1), 'utf8');
   return keep;
@@ -467,21 +727,28 @@ export async function refreshAll() {
 
   const prevById = new Map(prev.items.map(i => [i.id, i]));
 
-  const [opire, algora, ghb, freelancer, useme, devpost] = await Promise.all([
+  const [opire, algora, ghb, freelancer, useme, devpost, upwork, h1bounty, fiverr, airdrops] = await Promise.all([
     fetchOpire(cfg).catch(e => (console.error('[opire]', e.message), [])),
     fetchAlgora(cfg).catch(e => (console.error('[algora]', e.message), [])),
     fetchGithubBounties(cfg).catch(e => (console.error('[gh-bounty]', e.message), [])),
     fetchFreelancer(cfg).catch(e => (console.error('[freelancer]', e.message), [])),
     fetchUseme(cfg).catch(e => (console.error('[useme]', e.message), [])),
     fetchDevpost().catch(e => (console.error('[devpost]', e.message), [])),
+    fetchUpwork(cfg).catch(e => (console.error('[upwork]', e.message), [])),
+    fetchHackerOneBounties(cfg).catch(e => (console.error('[h1bounty]', e.message), [])),
+    fetchFiverrBuyerGigs(cfg).catch(e => (console.error('[fiverr]', e.message), [])),
+    fetchAirdrops(cfg).catch(e => (console.error('[airdrop]', e.message), [])),
   ]);
 
   // Opire nie waliduje nagrod: odsiej "rewardy" z repo-smieci (0 gwiazdek, scam/test)
   const opireClean = await filterRepoQuality(opire, cfg).catch(e => (console.error('[repo-filter]', e.message), opire));
+  // repoCache zapisany przez filterRepoQuality; wczytujemy do scoringu zdrowia repo
+  let repoCache = {};
+  try { repoCache = JSON.parse(await readFile(join(DATA, 'repo-cache.json'), 'utf8')); } catch {}
 
   // dedupe po URL: opire/algora maja pierwszenstwo przed wyszukiwarka GitHub
   const byUrl = new Map();
-  for (const it of [...opireClean, ...algora, ...ghb, ...freelancer, ...useme, ...devpost]) {
+  for (const it of [...opireClean, ...algora, ...ghb, ...freelancer, ...useme, ...devpost, ...upwork, ...h1bounty, ...fiverr, ...airdrops]) {
     if (!byUrl.has(it.url)) byUrl.set(it.url, it);
   }
   const items = [...byUrl.values()];
@@ -493,15 +760,15 @@ export async function refreshAll() {
     ? new RegExp(`(${cfg.skills.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi')
     : null;
   // zamkniete na GitHubie nie sa juz do wziecia
-  const live = items.filter(it => it.githubState !== 'closed').map(it => applyScore(it, skillsRe));
+  const live = items.filter(it => it.githubState !== 'closed').map(it => applyScore(it, skillsRe, repoCache));
 
   const payload = {
     updatedAt: now,
-    counts: { opire: opire.length, algora: algora.length, github: ghb.length, freelancer: freelancer.length, useme: useme.length, devpost: devpost.length },
+    counts: { opire: opire.length, algora: algora.length, github: ghb.length, freelancer: freelancer.length, useme: useme.length, devpost: devpost.length, upwork: upwork.length, h1bounty: h1bounty.length, fiverr: fiverr.length, airdrop: airdrops.length },
     items: live,
   };
   await writeFile(join(DATA, 'items.json'), JSON.stringify(payload, null, 1), 'utf8');
-  return payload;
+  return { ...payload, repoCache };
 }
 
 // CLI entry

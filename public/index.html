@@ -74,7 +74,146 @@
   .draft pre { white-space: pre-wrap; font: 12.5px/1.5 var(--mono); color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-top: 10px; max-height: 360px; overflow: auto; }
   .draft .acts { display: flex; gap: 8px; margin-top: 8px; }
 
+  /* ==== hero stats bar ==== */
+  .hero { display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; min-width: 110px; flex: 1; text-align: center; }
+  .stat-val { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+  .stat-val.green { color: var(--green); }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+
+  /* ==== source breakdown chips ==== */
+  .sources { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .schip { font-size: 12px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border2); }
+  .schip b { font-family: var(--mono); margin-left: 4px; }
+
+  /* ==== new source colors ==== */
+  .src-upwork { color: #6fda44; }
+  .src-airdrop { color: #f0b90b; }
+  .src-h1bounty { color: #e74c3c; }
+  .src-fiverr { color: #1dbf73; }
+
+  /* ==== queue cards ==== */
+  .qcard { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; }
+  .qcard .qhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; flex-wrap: wrap; }
+  .qcard .qhead a { color: var(--text); font-weight: 600; text-decoration: none; }
+  .qcard .qhead a:hover { color: var(--blue); }
+  .qcard .qbody { font-size: 13px; color: var(--muted); white-space: pre-wrap; max-height: 120px; overflow: hidden; font-family: var(--mono); line-height: 1.55; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  .qcard .qactions { display: flex; gap: 8px; margin-top: 10px; }
+  .qcard .qactions button { padding: 6px 14px; border-radius: 6px; font-size: 12.5px; }
+  .btn-approve { background: rgba(74,222,128,.15); border-color: var(--green); color: var(--green); }
+  .btn-skip { background: rgba(248,113,113,.1); border-color: var(--red); color: var(--red); }
+  .qbulk { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 12.5px; }
+
+  /* ==== streams grid ==== */
+  .streams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .stream-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .stream-icon { font-size: 24px; }
+  .stream-name { font-weight: 600; margin: 6px 0 4px; }
+  .stream-range { font-family: var(--mono); color: var(--green); font-size: 13px; }
+  .stream-status { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-top: 6px; text-transform: uppercase; letter-spacing: .4px; }
+  .stream-status.active { background: rgba(74,222,128,.15); color: var(--green); }
+  .stream-status.setup { background: rgba(251,191,36,.15); color: var(--amber); }
+  .stream-status.planned { background: rgba(125,140,158,.1); color: var(--dim); }
+  .stream-auto { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ==== quick-action button in row ==== */
+  .qact { background: transparent; border: 1px solid var(--border2); border-radius: 4px; padding: 1px 7px; font-size: 12px; cursor: pointer; color: var(--muted); line-height: 1.4; }
+  .qact:hover { border-color: var(--blue); color: var(--blue); }
+
+  /* ==== auto-refresh pulse ==== */
+  .pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 5px; vertical-align: middle; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  #countdown { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  /* ==== modal (draft preview) ==== */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; padding: 18px 20px; max-width: 740px; width: 100%; max-height: 84vh; overflow: auto; }
+  .modal h3 { font-size: 16px; margin-bottom: 8px; }
+  .modal textarea { width: 100%; min-height: 280px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font: 12.5px/1.55 var(--mono); resize: vertical; }
+  .modal .acts { display: flex; gap: 8px; margin-top: 12px; }
+
+  /* ==== toast ==== */
+  #toast { position: fixed; bottom: 22px; right: 22px; background: var(--panel); border: 1px solid var(--green); color: var(--green); padding: 10px 16px; border-radius: 8px; z-index: 60; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,.5); transition: opacity .4s; }
+
   @media (max-width: 800px) { .row { grid-template-columns: 80px 1fr; } .row > .comp, .row > .verdict, .row > .stwrap { grid-column: 2; } }
+
+  /* ==== NEW: monetization modules ==== */
+  /* earnings modal — scoped under .modal-overlay so the existing .modal-bg .modal styles (draft preview) stay intact */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay .modal { background: var(--panel2); border: 1px solid var(--border); border-radius: 14px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
+  .modal-overlay .modal h2 { margin: 0 0 16px; font-size: 18px; }
+  .modal-overlay .modal-close { position: absolute; right: 16px; top: 16px; cursor: pointer; font-size: 22px; color: var(--muted); user-select: none; line-height: 1; }
+  .modal-overlay .modal-close:hover { color: var(--text); }
+  .bar-chart { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
+  .bar-row { display: flex; align-items: center; gap: 8px; }
+  .bar-label { width: 110px; font-size: 12px; text-align: right; color: var(--muted); }
+  .bar-fill { height: 18px; border-radius: 4px; background: var(--green); min-width: 2px; transition: width .3s; }
+  .bar-val { font-size: 12px; font-family: var(--mono); color: var(--text); }
+  .ern-trio { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 14px; }
+  .ern-trio .ern-cell { flex: 1; min-width: 100px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; text-align: center; }
+  .ern-cell .v { font-family: var(--mono); font-size: 18px; color: var(--green); font-weight: 700; }
+  .ern-cell .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-top: 2px; }
+  .ledger-list { font-size: 12.5px; }
+  .ledger-row { display: grid; grid-template-columns: 64px 1fr 90px 90px; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--border); align-items: baseline; }
+  .ledger-row .lr-ts { color: var(--dim); font-family: var(--mono); font-size: 11px; }
+  .ledger-row .lr-amt { font-family: var(--mono); color: var(--green); text-align: right; font-weight: 600; }
+  .ledger-row .lr-src { font-size: 11px; color: var(--muted); }
+
+  /* clickable stat with trend */
+  .stat.clickable { cursor: pointer; transition: border-color .15s; }
+  .stat.clickable:hover { border-color: var(--green); }
+  .trend { font-size: 11px; margin-left: 4px; vertical-align: middle; }
+  .trend.up { color: var(--green); }
+  .trend.down { color: var(--red); }
+  .stat-sub { font-size: 10.5px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+
+  /* lead / post cards */
+  .lead-card, .post-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .lead-card:hover, .post-card:hover { border-color: var(--border2); }
+  .lead-head, .post-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .lead-head .nm { font-weight: 600; }
+  .lead-head .em { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  .lead-pitch { color: var(--muted); font-size: 12.5px; margin-top: 6px; white-space: pre-wrap; }
+  .post-body { color: var(--text); font-size: 13px; margin-top: 8px; white-space: pre-wrap; line-height: 1.55; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+  .post-body.collapsed { max-height: 60px; overflow: hidden; position: relative; }
+  .post-body.collapsed::after { content: ''; position: absolute; inset: auto 0 0 0; height: 24px; background: linear-gradient(transparent, var(--bg)); }
+  .card-acts { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .card-acts button { padding: 4px 10px; font-size: 12px; border-radius: 5px; }
+  .badge-status { font-size: 10.5px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: .3px; font-weight: 600; }
+  .bs-new { background: rgba(122,162,247,.15); color: var(--blue); }
+  .bs-drafted { background: rgba(251,191,36,.15); color: var(--amber); }
+  .bs-sent { background: rgba(125,140,158,.18); color: var(--muted); }
+  .bs-replied { background: rgba(74,222,128,.15); color: var(--green); }
+  .bs-converted { background: rgba(74,222,128,.3); color: var(--green); font-weight: 700; }
+
+  /* compact form rows for outreach/content/quick-modals */
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .form-row input, .form-row select, .form-row textarea { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: 12.5px; flex: 1; min-width: 100px; }
+  .form-row textarea { min-height: 38px; resize: vertical; font-family: var(--mono); font-size: 12px; flex: 2; min-width: 180px; }
+  .form-row button { padding: 6px 14px; border-radius: 6px; font-size: 12.5px; cursor: pointer; background: rgba(74,222,128,.12); border: 1px solid var(--green); color: var(--green); flex: 0 0 auto; }
+  .form-row button:hover { background: rgba(74,222,128,.25); }
+
+  /* stream activate / ready */
+  .stream-card .activate-btn { margin-top: 8px; padding: 5px 12px; font-size: 12px; border-radius: 6px; background: rgba(74,222,128,.12); border: 1px solid var(--green); color: var(--green); cursor: pointer; width: 100%; }
+  .stream-card .activate-btn:hover { background: rgba(74,222,128,.25); }
+  .stream-card .stream-earnings { font-family: var(--mono); font-size: 12px; color: var(--green); margin-top: 6px; }
+  .stream-status.ready { background: rgba(251,146,60,.18); color: #fb923c; }
+  .pulse-orange { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #fb923c; margin-right: 5px; vertical-align: middle; animation: pulse 1.5s infinite; }
+  .stream-ready-label { font-size: 11px; color: #fb923c; margin-top: 6px; }
+  .streams-total { margin-left: auto; color: var(--green); font-family: var(--mono); font-weight: 700; }
+
+  /* timeline (7-day calendar) */
+  .timeline { border-left: 2px solid var(--border2); margin: 14px 0 14px 14px; padding-left: 18px; }
+  .timeline-item { position: relative; margin-bottom: 14px; }
+  .timeline-item::before { content: ''; position: absolute; left: -25px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); border: 2px solid var(--bg); }
+  .timeline-day { font-size: 11px; color: var(--blue); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .timeline-body { color: var(--text); font-size: 13px; white-space: pre-wrap; }
+
+  /* quickbar (fixed at bottom) */
+  .quickbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--panel2); border-top: 1px solid var(--border); padding: 10px 20px; display: flex; gap: 10px; justify-content: center; z-index: 100; flex-wrap: wrap; }
+  .quickbar button { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 13px; cursor: pointer; }
+  .quickbar button:hover { border-color: var(--green); }
+  body { padding-bottom: 60px; }
 </style>
 </head>
 <body>
@@ -86,10 +225,31 @@
       <span id="paidSum" style="color:var(--green);font-weight:600"></span>
       <span id="tgBadge" style="font-size:12px"></span>
       <span id="pipeStats" style="font-size:12px;color:var(--muted)"></span>
+      <span title="auto-odswiezanie"><span class="pulse"></span><span id="countdown">1:00</span></span>
       <button id="notifBtn" title="Powiadomienia o nowych pozycjach">🔔 Powiadomienia</button>
       <button id="refreshBtn">Odśwież teraz</button>
     </div>
   </header>
+
+  <div class="hero">
+    <div class="stat"><div class="stat-val" id="st-total">0</div><div class="stat-lbl">Pozycji</div></div>
+    <div class="stat"><div class="stat-val" id="st-drafts">0</div><div class="stat-lbl">Szkicow</div></div>
+    <div class="stat"><div class="stat-val" id="st-sent">0</div><div class="stat-lbl">Wyslanych</div></div>
+    <div class="stat clickable" id="st-earn-box" title="Klik = pelne zarobki, ledger, dodawanie">
+      <div class="stat-val green" id="st-earnings">$0</div>
+      <div class="stat-lbl">Zarobione <span class="trend" id="st-earn-trend"></span></div>
+    </div>
+    <div class="stat"><div class="stat-val" id="st-winrate">-</div><div class="stat-lbl">Win Rate</div></div>
+    <div class="stat"><div class="stat-val" id="st-queue">0</div><div class="stat-lbl">W kolejce</div></div>
+    <div class="stat">
+      <div class="stat-val" id="st-today">$0</div>
+      <div class="stat-lbl">Dzisiaj</div>
+      <div class="stat-sub" id="st-period">tydz: $0 · msc: $0</div>
+    </div>
+  </div>
+
+  <div class="sources" id="source-chips"></div>
+
 
   <nav>
     <button data-tab="bounty" class="on">Bounty<span class="cnt" id="cntBounty">–</span></button>
@@ -97,6 +257,11 @@
     <button data-tab="konkursy">Konkursy<span class="cnt" id="cntKonkursy">–</span></button>
     <button data-tab="hotele">Hotele<span class="cnt" id="cntHotele">–</span></button>
     <button data-tab="agent">Agent<span class="cnt" id="cntAgent">–</span></button>
+    <button data-tab="kolejka">Kolejka<span class="cnt" id="cntKolejka">–</span></button>
+    <button data-tab="strumienie">Strumienie<span class="cnt" id="cntStrumienie">–</span></button>
+    <button data-tab="statystyki">Statystyki</button>
+    <button data-tab="outreach">Outreach<span class="cnt" id="cntOutreach">–</span></button>
+    <button data-tab="content">Content<span class="cnt" id="cntContent">–</span></button>
     <button data-tab="konta">Konta / start</button>
   </nav>
 
@@ -109,8 +274,12 @@
       <option value="opire">Opire</option>
       <option value="algora">Algora</option>
       <option value="github">GitHub</option>
+      <option value="h1bounty">HackerOne</option>
+      <option value="airdrop">Airdrop</option>
       <option value="useme">Useme</option>
       <option value="freelancer">Freelancer</option>
+      <option value="upwork">Upwork</option>
+      <option value="fiverr">Fiverr</option>
     </select>
     <select id="sortSel">
       <option value="score">sortuj: opłacalność</option>
@@ -123,10 +292,17 @@
   <div id="list"></div>
 </div>
 
+<div class="quickbar">
+  <button onclick="quickGenContent()">📝 Generuj post</button>
+  <button onclick="quickAddLead()">👤 Dodaj lead</button>
+  <button onclick="quickAddEarning()">💰 Dodaj zarobek</button>
+  <button onclick="location.href='/api/earnings'">📊 Zarobki JSON</button>
+</div>
+
 <script>
 const STATUSES = ['', 'obserwuje', 'agent', 'szkic', 'do-wyslania', 'wyslane', 'odpowiedz', 'wygrane', 'przegrane', 'claim', 'PR wyslany', 'wyplacone', 'ukryte'];
 const STATUS_LABELS = { '': '—', 'obserwuje': '👀 obserwuję', 'agent': '🤖 do agenta', 'szkic': '📝 szkic gotowy', 'do-wyslania': '✅ zatwierdzone do wysyłki', 'wyslane': '📤 wysłane', 'odpowiedz': '💬 jest odpowiedź', 'wygrane': '🏆 wygrane', 'przegrane': '✖ przegrane', 'claim': '🎯 claim', 'PR wyslany': '🔃 PR wysłany', 'wyplacone': '💰 wypłacone', 'ukryte': '🙈 ukryj' };
-const TAB_SRC = { bounty: ['opire', 'algora', 'github'], useme: ['useme', 'freelancer'], konkursy: ['devpost'] };
+const TAB_SRC = { bounty: ['opire', 'algora', 'github', 'h1bounty', 'airdrop'], useme: ['useme', 'freelancer', 'upwork', 'fiverr'], konkursy: ['devpost'] };
 const ACCOUNTS = [
   { sect: 'Automatyzacja (zaloguj się raz — agent działa na Twoich sesjach)' },
   { id: 'chrome', name: 'Profil Chrome do automatyzacji — uruchom chrome-debug.cmd', url: 'http://127.0.0.1:7777', desc: 'Osobny Chrome (port 9333, profil w data/chrome-profile). Zaloguj się w nim przez Google/GitHub do: Useme, Algora, Opire, Freelancer, Prolific, Devpost. Sesje zostają — agent czyta zalogowane strony i przygotowuje wysyłki; wysyła TYLKO na Twoje polecenie.' },
@@ -148,10 +324,41 @@ const ACCOUNTS = [
   { id: 'n8n', name: 'n8n self-hosted postawiony', url: 'https://docs.n8n.io/hosting/', desc: 'Darmowy. Jeden pokazowy workflow (np. auto-oferty / raporty) = portfolio do sprzedaży automatyzacji firmom ($200–1500/szt.).' },
 ];
 
+const STREAMS = [
+  { icon: '💼', name: 'Freelance Speed-Apply',   range: '$2000-6000/msc',   auto: 60, status: 'active'  },
+  { icon: '🐛', name: 'Open-source bounties',    range: '$500-3000/msc',    auto: 50, status: 'active'  },
+  { icon: '🏆', name: 'Hackathons (Devpost)',    range: '$200-5000/event',  auto: 30, status: 'active'  },
+  { icon: '💻', name: 'Upwork jobs',             range: '$1500-8000/msc',   auto: 40, status: 'active'  },
+  { icon: '🪂', name: 'Airdrops/Testnets',       range: '$100-2000/msc',    auto: 70, status: 'active'  },
+  { icon: '🔒', name: 'Bug bounty (HackerOne)',  range: '$500-10000/find',  auto: 20, status: 'setup'   },
+  { icon: '🎯', name: 'Fiverr gigs',             range: '$300-2000/msc',    auto: 30, status: 'setup'   },
+  { icon: '🚀', name: 'Micro-SaaS',              range: '$500-5000/msc',    auto: 80, status: 'planned' },
+  { icon: '📱', name: 'Telegram bot/mini-app',   range: '$200-2000/msc',    auto: 90, status: 'planned' },
+  { icon: '🎙', name: 'AI voiceover/dubbing',    range: '$300-1500/msc',    auto: 60, status: 'planned' },
+  { icon: '👕', name: 'Print on demand',         range: '$100-1000/msc',    auto: 70, status: 'planned' },
+  { icon: '🎵', name: 'AI music (Suno/Spotify)', range: '$50-800/msc',      auto: 80, status: 'planned' },
+  { icon: '📺', name: 'YouTube faceless',        range: '$200-3000/msc',    auto: 50, status: 'planned' },
+  { icon: '📧', name: 'Cold email outreach',     range: '$1000-5000/msc',   auto: 70, status: 'planned' },
+  { icon: '⚙', name: 'n8n automation agency',   range: '$1500-8000/msc',   auto: 50, status: 'planned' },
+  { icon: '💡', name: 'Prompt marketplace',      range: '$50-500/msc',      auto: 80, status: 'planned' },
+  { icon: '🏷', name: 'Data labeling',           range: '$300-1200/msc',    auto: 10, status: 'planned' },
+  { icon: '🔍', name: 'SEO niche sites',         range: '$200-3000/msc',    auto: 60, status: 'planned' },
+  { icon: '🔗', name: 'Content affiliate',       range: '$100-2000/msc',    auto: 60, status: 'planned' },
+  { icon: '📡', name: 'income-radar SaaS',       range: '$500-10000/msc',   auto: 90, status: 'planned' },
+];
+
 let DB = { items: [], updatedAt: 0 };
 let STATE = { itemStatus: {}, accounts: {} };
 let DRAFTS = {};
 let tab = 'bounty';
+let STATS = {};
+let QUEUE = [];
+let WINRATES = {};
+let countdownLeft = 60;
+let EARNINGS = { total: 0, today: 0, week: 0, month: 0, streams: {}, ledger: [], trend: 0 };
+let OUTREACH = { leads: [], stats: {} };
+let CONTENT = { posts: [], stats: {} };
+let STREAMS_API = { items: [], totals: {} };
 const $ = id => document.getElementById(id);
 
 const seenKey = 'radar-seen';
@@ -176,12 +383,17 @@ function render() {
   $('cntAgent').textContent = `${DB.items.filter(i => (STATE.itemStatus[i.id] || '') === 'agent').length}·${Object.keys(DRAFTS).length}`;
   const paid = Object.values(STATE.ledger || {}).reduce((s, e) => s + (e?.amountUSD || 0), 0);
   $('paidSum').textContent = paid ? `💰 wypłacone: $${paid.toLocaleString('en-US')}` : '';
-  $('filters').style.display = (tab === 'konta' || tab === 'agent' || tab === 'hotele') ? 'none' : 'flex';
+  $('filters').style.display = ['konta','agent','hotele','kolejka','strumienie','statystyki','outreach','content'].includes(tab) ? 'none' : 'flex';
   $('srcSel').style.display = (tab === 'bounty' || tab === 'useme') ? '' : 'none';
   const list = $('list');
   if (tab === 'konta') return renderAccounts(list);
   if (tab === 'agent') return renderAgent(list);
   if (tab === 'hotele') return renderHotele(list);
+  if (tab === 'kolejka') return renderKolejka(list);
+  if (tab === 'strumienie') return renderStrumienie(list);
+  if (tab === 'statystyki') return renderStatystyki(list);
+  if (tab === 'outreach') return renderOutreach(list);
+  if (tab === 'content') return renderContent(list);
 
   const q = $('q').value.toLowerCase();
   const minAmt = Number($('minAmt').value) || 0;
@@ -225,10 +437,15 @@ function rowHtml(it, seen) {
   const fup = st === 'wyslane' && STATE.statusTs && STATE.statusTs[it.id] && (Date.now() - STATE.statusTs[it.id] > 3 * 864e5)
     ? '<span class="chip" style="color:#e5a158;border-color:#e5a158">🔔 follow-up</span>' : '';
   const isPln = it.source === 'useme' || it.source === 'freelancer';
+  const qactBtn = DRAFTS[it.id] && ['opire','algora','github','h1bounty','airdrop'].includes(it.source)
+    ? `<button class="qact" data-copy-comment="${esc(it.id)}" title="Kopiuj komentarz">📋</button>`
+    : (DRAFTS[it.id] && ['useme','freelancer','upwork','fiverr'].includes(it.source)
+      ? `<button class="qact" data-preview-draft="${esc(it.id)}" title="Podglad szkicu">📝</button>`
+      : '');
   return `<div class="row ${isNew ? 'new' : ''}">
     <div class="amt ${isPln ? 'pln' : ''}">${esc(it.amountText)}${isPln && it.amountUSD ? `<small>≈ $${it.amountUSD}</small>` : ''}</div>
     <div class="ttl"><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
-      <div class="sub"><span class="chip src-${it.source}">${it.source}</span>${it.org ? `<span>${esc(it.org)}</span>` : ''}${langs}${skillChip}${draftChip}${fup}${ageChip(it)}${it.note ? `<span>${esc(it.note)}</span>` : ''}<span title="kiedy radar to wykrył">${ago(it.firstSeen)}</span></div>
+      <div class="sub"><span class="chip src-${it.source}">${it.source}</span>${it.org ? `<span>${esc(it.org)}</span>` : ''}${langs}${skillChip}${draftChip}${qactBtn}${fup}${ageChip(it)}${it.note ? `<span>${esc(it.note)}</span>` : ''}<span title="kiedy radar to wykrył">${ago(it.firstSeen)}</span></div>
     </div>
     <div class="comp">${compTxt}</div>
     <div class="verdict v-${it.verdict}">${vLabel}</div>
@@ -259,6 +476,8 @@ function bindStatus(list) {
     await fetch('/api/state', { method: 'POST', body: JSON.stringify({ itemStatus: { [sel.dataset.id]: sel.value }, ledger: { [sel.dataset.id]: entry }, statusTs: { [sel.dataset.id]: Date.now() } }) });
     render();
   }));
+  list.querySelectorAll('button[data-copy-comment]').forEach(b => b.addEventListener('click', () => copyComment(b.dataset.copyComment)));
+  list.querySelectorAll('button[data-preview-draft]').forEach(b => b.addEventListener('click', () => previewDraft(b.dataset.previewDraft)));
 }
 
 function renderAgent(list) {
@@ -427,6 +646,14 @@ async function load(first = false) {
   const s = await fetch('/api/state'); STATE = await s.json();
   try { DRAFTS = await (await fetch('/api/drafts')).json(); } catch { DRAFTS = {}; }
   try { WATCHES = await (await fetch('/api/watches')).json(); } catch { WATCHES = []; }
+  try { const sr = await fetch('/api/stats'); STATS = sr.ok ? await sr.json() : {}; } catch { STATS = {}; }
+  try { const qr = await fetch('/api/queue'); const qd = qr.ok ? await qr.json() : []; QUEUE = Array.isArray(qd) ? qd : (qd && Array.isArray(qd.items) ? qd.items : []); } catch { QUEUE = []; }
+  try { const wrr = await fetch('/api/winrates'); WINRATES = wrr.ok ? await wrr.json() : {}; } catch { WINRATES = {}; }
+  // new endpoints — graceful 404/network fallback keeps last known state
+  try { const er = await fetch('/api/earnings'); if (er.ok) EARNINGS = await er.json() || EARNINGS; } catch {}
+  try { const or = await fetch('/api/outreach'); if (or.ok) OUTREACH = await or.json() || OUTREACH; } catch {}
+  try { const cr = await fetch('/api/content'); if (cr.ok) CONTENT = await cr.json() || CONTENT; } catch {}
+  try { const str = await fetch('/api/streams'); if (str.ok) STREAMS_API = await str.json() || STREAMS_API; } catch {}
   $('updated').textContent = DB.updatedAt ? `aktualizacja: ${new Date(DB.updatedAt).toLocaleTimeString('pl-PL')}` : 'brak danych';
   $('tgBadge').textContent = DB.tg ? '🔔 Telegram ON' : '🔕 Telegram OFF';
   $('tgBadge').style.color = DB.tg ? 'var(--green)' : '#e5a158';
@@ -442,6 +669,13 @@ async function load(first = false) {
   const won = stVals.filter(s => ['wygrane', 'wyplacone'].includes(s)).length;
   $('pipeStats').textContent = sent ? `📤 ${sent} · 💬 ${resp} · 🏆 ${won} (${Math.round(100 * won / sent)}%)` : '';
   $('pipeStats').title = 'pipeline: wysłane · odpowiedzi · wygrane (skuteczność)';
+  $('cntKolejka').textContent = QUEUE.length || '–';
+  $('cntStrumienie').textContent = STREAMS.filter(s => streamStatus(s) === 'active').length;
+  const oc = $('cntOutreach'); if (oc) oc.textContent = (OUTREACH.leads || []).length || '–';
+  const cc = $('cntContent'); if (cc) cc.textContent = (CONTENT.posts || []).length || '–';
+  updateHero();
+  updateSourceChips();
+  countdownLeft = (STATS.refreshMinutes || 1) * 60;
   if (!first) notifyNew(DB.items);
   render();
   if (first) { const seen = getSeen(); DB.items.forEach(i => seen.add(i.id)); setSeen(seen); }
@@ -463,7 +697,806 @@ $('notifBtn').addEventListener('click', async () => {
 if (Notification.permission === 'granted') $('notifBtn').textContent = '🔔 Włączone';
 
 load(true);
-setInterval(() => load(), 60_000);
+// --- hero / source-chips / new-tab renderers / countdown ---
+function updateHero() {
+  const totalItems = (DB.items || []).length;
+  const draftCount = Object.keys(DRAFTS || {}).length;
+  const stVals = Object.values(STATE.itemStatus || {});
+  const sentCount = stVals.filter(s => ['wyslane', 'odpowiedz', 'wygrane', 'przegrane', 'wyplacone'].includes(s)).length;
+  const ledgerSum = Object.values(STATE.ledger || {}).reduce((s, e) => s + (e?.amountUSD || 0), 0);
+  const earningsTotal = (EARNINGS && +EARNINGS.total) || ledgerSum;
+  const won = stVals.filter(s => ['wygrane', 'wyplacone'].includes(s)).length;
+  const wrPct = (WINRATES && WINRATES.total && WINRATES.total.winRate !== undefined && WINRATES.total.winRate !== null)
+    ? `${Math.round(WINRATES.total.winRate)}%`
+    : (sentCount ? `${Math.round(100 * won / sentCount)}%` : '-');
+  const queueReady = (STATS && STATS.queueReady !== undefined) ? STATS.queueReady : (QUEUE.length || 0);
+  const today = (EARNINGS && EARNINGS.today !== undefined) ? +EARNINGS.today : (+STATS.todayEarnings || 0);
+  const week  = (EARNINGS && EARNINGS.week  !== undefined) ? +EARNINGS.week  : (+STATS.weekEarnings  || 0);
+  const month = (EARNINGS && EARNINGS.month !== undefined) ? +EARNINGS.month : 0;
+  $('st-total').textContent    = totalItems.toLocaleString('en-US');
+  $('st-drafts').textContent   = draftCount;
+  $('st-sent').textContent     = sentCount;
+  $('st-earnings').textContent = `$${(+earningsTotal || 0).toLocaleString('en-US')}`;
+  $('st-winrate').textContent  = wrPct;
+  $('st-queue').textContent    = queueReady;
+  $('st-today').textContent    = `$${(+today || 0).toLocaleString('en-US')}`;
+  const periodEl = $('st-period');
+  if (periodEl) periodEl.textContent = `tydz: $${(+week || 0).toLocaleString('en-US')} · msc: $${(+month || 0).toLocaleString('en-US')}`;
+  // trend: today vs 7-day avg, or use server-side EARNINGS.trend (pct)
+  const trendEl = $('st-earn-trend');
+  if (trendEl) {
+    let trendPct = null;
+    if (EARNINGS && typeof EARNINGS.trend === 'number' && EARNINGS.trend !== 0) {
+      trendPct = Math.round(EARNINGS.trend);
+    } else if (week > 0 && today > 0) {
+      const avgDaily = week / 7;
+      if (avgDaily > 0) trendPct = Math.round(((today - avgDaily) / avgDaily) * 100);
+    }
+    if (trendPct !== null) {
+      const up = trendPct >= 0;
+      trendEl.textContent = `${up ? '▲' : '▼'} ${Math.abs(trendPct)}%`;
+      trendEl.className = `trend ${up ? 'up' : 'down'}`;
+    } else {
+      trendEl.textContent = '';
+      trendEl.className = 'trend';
+    }
+  }
+  // wire click handler exactly once
+  const earnBox = $('st-earn-box');
+  if (earnBox && !earnBox.dataset.wired) {
+    earnBox.addEventListener('click', openEarningsModal);
+    earnBox.dataset.wired = '1';
+  }
+}
+
+function updateSourceChips() {
+  const breakdown = (STATS && STATS.sourceBreakdown && Object.keys(STATS.sourceBreakdown).length)
+    ? STATS.sourceBreakdown
+    : (() => { const b = {}; for (const it of (DB.items || [])) b[it.source] = (b[it.source] || 0) + 1; return b; })();
+  const entries = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) { $('source-chips').innerHTML = ''; return; }
+  $('source-chips').innerHTML = entries
+    .map(([src, n]) => `<span class="schip src-${esc(src)}">${esc(src.charAt(0).toUpperCase() + src.slice(1))} <b>${n}</b></span>`)
+    .join('');
+}
+
+function qcardHtml(q) {
+  const src = q.source || 'item';
+  const title = q.title || q.id || 'bez tytulu';
+  const url = q.url || '#';
+  const amount = q.amountText || (q.amountUSD ? `$${q.amountUSD}` : '');
+  const draft = q.draft || {};
+  const body = draft.body || q.body || draft.comment || q.comment || '';
+  const preview = body.length > 200 ? body.slice(0, 200) + '…' : body;
+  return `<div class="qcard">
+    <div class="qhead">
+      <span><span class="chip src-${esc(src)}">${esc(src)}</span> <a href="${esc(url)}" target="_blank" rel="noopener">${esc(title)}</a></span>
+      <span class="amt" style="font-size:14px">${esc(amount)}</span>
+    </div>
+    <div class="qbody">${preview ? esc(preview) : '<span style="color:var(--dim)">brak tresci szkicu</span>'}</div>
+    <div class="qactions">
+      <button class="btn-approve" data-approve-q="${esc(q.id)}">✅ Zatwierdz</button>
+      <button class="btn-skip" data-skip-q="${esc(q.id)}">❌ Pomin</button>
+    </div>
+  </div>`;
+}
+
+function renderKolejka(list) {
+  if (!QUEUE.length) {
+    list.innerHTML = '<div class="empty">Kolejka pusta. Szkice gotowe do wysylki pojawia sie tu automatycznie, gdy silnik AutoEngine zaczynie generowac wsadowo.</div>';
+    return;
+  }
+  const ids = QUEUE.map(q => q.id);
+  let html = `<div class="qbulk">
+    <button id="bulkApprove" class="btn-approve" style="padding:6px 14px;border-radius:6px">✅ Zatwierdz wszystkie (${QUEUE.length})</button>
+    <span style="color:var(--dim);font-size:12.5px">${QUEUE.length} pozycji w kolejce. Pomin = usun z kolejki, ale szkic zostaje.</span>
+  </div>`;
+  html += QUEUE.map(q => qcardHtml(q)).join('');
+  list.innerHTML = html;
+  $('bulkApprove').addEventListener('click', async () => {
+    const btn = $('bulkApprove');
+    btn.disabled = true; btn.textContent = 'Zatwierdzam...';
+    try { await fetch('/api/queue/bulk-approve', { method: 'POST', body: JSON.stringify({ ids }) }); }
+    catch (e) { flashToast('Blad sieci', true); }
+    await load();
+  });
+  list.querySelectorAll('button[data-approve-q]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true; b.textContent = '...';
+    try { await fetch('/api/queue/approve', { method: 'POST', body: JSON.stringify({ id: b.dataset.approveQ }) }); }
+    catch { flashToast('Blad sieci', true); }
+    await load();
+  }));
+  list.querySelectorAll('button[data-skip-q]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true; b.textContent = '...';
+    try { await fetch('/api/queue/skip', { method: 'POST', body: JSON.stringify({ id: b.dataset.skipQ }) }); }
+    catch { flashToast('Blad sieci', true); }
+    await load();
+  }));
+}
+
+function renderStrumienie(list) {
+  const merged = STREAMS.map(s => ({ ...s, status: streamStatus(s), earned: streamEarnings(s) }));
+  const active  = merged.filter(s => s.status === 'active').length;
+  const ready   = merged.filter(s => s.status === 'ready').length;
+  const setup   = merged.filter(s => s.status === 'setup').length;
+  const planned = merged.filter(s => s.status === 'planned').length;
+  const potential = merged.filter(s => s.status === 'active').reduce((sum, s) => sum + streamMidpoint(s.range), 0);
+  let html = `<div class="sect">20 strumieni dochodu — przeglad</div>
+  <div class="qbulk">
+    <span><b style="color:var(--green)">${active}</b> aktywne</span>
+    ${ready ? `<span><b style="color:#fb923c">${ready}</b> gotowe</span>` : ''}
+    <span><b style="color:var(--amber)">${setup}</b> w przygotowaniu</span>
+    <span><b style="color:var(--dim)">${planned}</b> planowane</span>
+    <span class="streams-total" title="Potencjal aktywnych strumieni (suma srodkow przedzialow $/msc)">~$${potential.toLocaleString('en-US')}/msc potencjal</span>
+  </div>
+  <div class="streams-grid">`;
+  html += merged.map(s => {
+    const id = streamSlug(s.name);
+    const isActive = s.status === 'active';
+    const isReady  = s.status === 'ready';
+    const earnTxt = s.earned ? `<div class="stream-earnings">💰 $${s.earned.toLocaleString('en-US')} dotad</div>` : '';
+    const activateBtn = !isActive
+      ? `<button class="activate-btn" data-activate-stream="${esc(id)}" data-stream-name="${esc(s.name)}">▶ Aktywuj</button>`
+      : '';
+    const readyLabel = isReady
+      ? `<div class="stream-ready-label"><span class="pulse-orange"></span>Gotowy do uruchomienia</div>`
+      : '';
+    return `<div class="stream-card">
+      <div class="stream-icon">${s.icon}</div>
+      <div class="stream-name">${esc(s.name)}</div>
+      <div class="stream-range">${esc(s.range)}</div>
+      <div class="stream-status ${s.status}">${s.status}</div>
+      <div class="stream-auto">Auto: ${s.auto}%</div>
+      ${earnTxt}
+      ${readyLabel}
+      ${activateBtn}
+    </div>`;
+  }).join('');
+  html += '</div>';
+  list.innerHTML = html;
+  list.querySelectorAll('button[data-activate-stream]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.activateStream;
+    const name = b.dataset.streamName;
+    b.disabled = true; b.textContent = 'Aktywuje...';
+    try {
+      const r = await fetch('/api/streams/activate', { method: 'POST', body: JSON.stringify({ id, name }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast(`Aktywowano: ${name}`);
+      await load();
+    } catch (e) {
+      b.disabled = false; b.textContent = '▶ Aktywuj';
+      flashToast('Endpoint /api/streams/activate nieaktywny', true);
+    }
+  }));
+}
+
+function renderStatystyki(list) {
+  const stVals = Object.values(STATE.itemStatus || {});
+  const sent = stVals.filter(s => ['wyslane', 'odpowiedz', 'wygrane', 'przegrane', 'wyplacone'].includes(s)).length;
+  const resp = stVals.filter(s => ['odpowiedz', 'wygrane', 'przegrane', 'wyplacone'].includes(s)).length;
+  const won  = stVals.filter(s => ['wygrane', 'wyplacone'].includes(s)).length;
+  const paid = Object.values(STATE.ledger || {}).reduce((s, e) => s + (e?.amountUSD || 0), 0);
+  const breakdown = (STATS && STATS.sourceBreakdown && Object.keys(STATS.sourceBreakdown).length)
+    ? STATS.sourceBreakdown
+    : (() => { const b = {}; for (const it of (DB.items || [])) b[it.source] = (b[it.source] || 0) + 1; return b; })();
+  const draftsByKind = (STATS && STATS.draftsByKind) || {};
+  const bySource = (WINRATES && WINRATES.bySource) || {};
+  const todayE = (STATS && STATS.todayEarnings) || 0;
+  const weekE  = (STATS && STATS.weekEarnings) || 0;
+  let html = `<div class="sect">Pipeline</div>
+  <div class="qbulk">
+    <span>📤 wyslane: <b>${sent}</b></span>
+    <span>💬 odpowiedzi: <b>${resp}</b> ${sent ? `(${Math.round(100*resp/sent)}%)` : ''}</span>
+    <span>🏆 wygrane: <b>${won}</b> ${sent ? `(${Math.round(100*won/sent)}%)` : ''}</span>
+    <span>💰 wyplacone (laczne): <b style="color:var(--green)">$${paid.toLocaleString('en-US')}</b></span>
+    <span>📅 dzisiaj: <b style="color:var(--green)">$${(+todayE).toLocaleString('en-US')}</b></span>
+    <span>📆 tydzien: <b style="color:var(--green)">$${(+weekE).toLocaleString('en-US')}</b></span>
+  </div>
+  <div class="sect">Win rate po zrodle</div>`;
+  const wrEntries = Object.entries(bySource);
+  if (wrEntries.length) {
+    html += wrEntries.map(([src, w]) => {
+      const wr = (w && w.winRate !== undefined && w.winRate !== null) ? Math.round(w.winRate) : 0;
+      const earnings = w && w.earnings ? (+w.earnings).toLocaleString('en-US') : '0';
+      return `<div class="acc"><div style="flex:1">
+        <div class="nm"><span class="chip src-${esc(src)}">${esc(src)}</span> &nbsp; win rate <b style="color:${wr >= 50 ? 'var(--green)' : wr >= 20 ? 'var(--amber)' : 'var(--red)'}">${wr}%</b></div>
+        <p>wyslane: ${w.sent || 0} &middot; wygrane: ${w.won || 0} &middot; zarobione: $${earnings}</p>
+      </div></div>`;
+    }).join('');
+  } else {
+    html += '<div class="empty">Brak danych o win rate. Endpoint /api/winrates jeszcze nie zwraca danych — pojawi sie po pierwszych wynikach (status „wygrane” / „wyplacone”).</div>';
+  }
+  html += `<div class="sect">Pozycje wedlug zrodla (${Object.keys(breakdown).length})</div>`;
+  html += '<div class="qbulk">' + Object.entries(breakdown).sort((a,b) => b[1]-a[1]).map(([s,n]) =>
+    `<span><span class="chip src-${esc(s)}">${esc(s)}</span> <b>${n}</b></span>`
+  ).join('') + '</div>';
+  if (Object.keys(draftsByKind).length) {
+    html += '<div class="sect">Szkice wedlug typu</div>';
+    html += '<div class="qbulk">' + Object.entries(draftsByKind).map(([k,n]) =>
+      `<span><span class="chip">${esc(k)}</span> <b>${n}</b></span>`
+    ).join('') + '</div>';
+  }
+  list.innerHTML = html;
+}
+
+async function copyComment(id) {
+  try { const r = await fetch('/api/drafts'); if (r.ok) DRAFTS = await r.json() || DRAFTS; } catch {}
+  const d = DRAFTS[id] || {};
+  const body = d.comment || d.body || '';
+  if (!body) { flashToast('Brak szkicu komentarza', true); return; }
+  try { await navigator.clipboard.writeText(body); flashToast('Skopiowano komentarz ✓'); }
+  catch { flashToast('Nie udalo sie skopiowac', true); }
+}
+
+async function previewDraft(id) {
+  try { const r = await fetch('/api/drafts'); if (r.ok) DRAFTS = await r.json() || DRAFTS; } catch {}
+  const d = DRAFTS[id];
+  if (!d) { flashToast('Brak szkicu dla tej pozycji', true); return; }
+  const it = (DB.items || []).find(i => i.id === id) || {};
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal">
+    <h3>${esc(it.title || d.title || id)}</h3>
+    <div style="color:var(--muted);font-size:12px;margin-bottom:10px">
+      <span class="chip src-${esc(it.source || 'item')}">${esc(it.source || 'item')}</span>
+      &nbsp;${esc(d.kind || 'szkic')}${d.ts ? ' &middot; ' + new Date(d.ts).toLocaleString('pl-PL') : ''}
+    </div>
+    <textarea id="modalTxt">${esc(d.body || '')}</textarea>
+    <div class="acts">
+      <button id="modalCopy" class="btn-approve">📋 Kopiuj</button>
+      <button id="modalSave">💾 Zapisz zmiany</button>
+      <button id="modalClose">Zamknij</button>
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  bg.addEventListener('click', e => { if (e.target === bg) close(); });
+  bg.querySelector('#modalClose').addEventListener('click', close);
+  bg.querySelector('#modalCopy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(bg.querySelector('#modalTxt').value); flashToast('Skopiowano ✓'); }
+    catch { flashToast('Blad kopiowania', true); }
+  });
+  bg.querySelector('#modalSave').addEventListener('click', async () => {
+    const body = bg.querySelector('#modalTxt').value;
+    DRAFTS[id] = { ...d, body, ts: Date.now() };
+    try { await fetch('/api/drafts', { method: 'POST', body: JSON.stringify({ [id]: DRAFTS[id] }) }); flashToast('Zapisano ✓'); }
+    catch { flashToast('Blad zapisu', true); }
+    close();
+    render();
+  });
+}
+
+function flashToast(msg, err) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.style.borderColor = err ? 'var(--red)' : 'var(--green)';
+  t.style.color = err ? 'var(--red)' : 'var(--green)';
+  t.style.opacity = '1';
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.style.opacity = '0'; }, 1800);
+}
+
+function tickCountdown() {
+  const el = $('countdown'); if (!el) return;
+  if (countdownLeft <= 0) {
+    countdownLeft = (STATS.refreshMinutes || 1) * 60;
+    el.textContent = '...';
+    load();
+    return;
+  }
+  const m = Math.floor(countdownLeft / 60);
+  const s = countdownLeft % 60;
+  el.textContent = `${m}:${String(s).padStart(2, '0')}`;
+  countdownLeft--;
+}
+
+
+// =============== STREAM HELPERS ===============
+function streamSlug(name) {
+  return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+function streamMidpoint(range) {
+  // parse "$2000-6000/msc" or "$500-10000/find" -> midpoint in USD
+  const m = String(range).match(/\$?(\d[\d ,]*)\s*[-–]\s*\$?(\d[\d ,]*)/);
+  if (!m) return 0;
+  const a = +m[1].replace(/[ ,]/g, '');
+  const b = +m[2].replace(/[ ,]/g, '');
+  return Math.round((a + b) / 2);
+}
+function streamStatus(s) {
+  const slug = streamSlug(s.name);
+  const apiItems = STREAMS_API && Array.isArray(STREAMS_API.items) ? STREAMS_API.items : [];
+  const hit = apiItems.find(x => streamSlug(x.id || x.name || '') === slug);
+  return (hit && hit.status) || s.status;
+}
+function streamEarnings(s) {
+  if (!EARNINGS || !EARNINGS.streams) return 0;
+  const slug = streamSlug(s.name);
+  const v = EARNINGS.streams[slug] !== undefined ? EARNINGS.streams[slug] : EARNINGS.streams[s.name];
+  return +v || 0;
+}
+
+// =============== OUTREACH TAB ===============
+function leadCard(l) {
+  const id = l.id || l.email || '';
+  const st = (l.status || 'new').toLowerCase();
+  const statusCls = { 'new': 'bs-new', 'drafted': 'bs-drafted', 'sent': 'bs-sent', 'replied': 'bs-replied', 'converted': 'bs-converted' }[st] || 'bs-new';
+  const ind = l.industry ? `<span class="chip">${esc(l.industry)}</span>` : '';
+  const pitch = l.pitch || l.note || '';
+  const hasDraft = !!(l.draftBody || l.draft);
+  const draftHtml = hasDraft
+    ? `<pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;font:12px/1.55 var(--mono);max-height:160px;overflow:auto;white-space:pre-wrap;margin-top:8px;color:var(--text)">${esc(l.draftBody || l.draft || '')}</pre>`
+    : '';
+  return `<div class="lead-card">
+    <div class="lead-head">
+      <span class="nm">${esc(l.name || '—')}</span>
+      <span class="em">${esc(l.email || '')}</span>
+      ${ind}
+      <span class="badge-status ${statusCls}">${esc(st)}</span>
+      ${l.revenue ? `<span class="amt" style="font-size:13px;margin-left:auto">$${(+l.revenue).toLocaleString('en-US')}</span>` : ''}
+    </div>
+    ${pitch ? `<div class="lead-pitch">${esc(pitch)}</div>` : ''}
+    ${draftHtml}
+    <div class="card-acts">
+      ${(st === 'new' || !hasDraft) ? `<button data-lead-draft="${esc(id)}">📝 Generuj draft</button>` : ''}
+      ${(st !== 'sent' && st !== 'replied' && st !== 'converted') ? `<button data-lead-status="${esc(id)}" data-set="sent">📤 Mark sent</button>` : ''}
+      ${st === 'sent' ? `<button data-lead-status="${esc(id)}" data-set="replied">💬 Mark replied</button>` : ''}
+      ${st === 'replied' ? `<button data-lead-status="${esc(id)}" data-set="converted">🏆 Mark converted</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderOutreach(list) {
+  const leads = (OUTREACH && Array.isArray(OUTREACH.leads)) ? OUTREACH.leads : [];
+  const stats = (OUTREACH && OUTREACH.stats) || {};
+  const cnt = k => (stats[k] !== undefined ? stats[k] : leads.filter(l => (l.status || '').toLowerCase() === k).length);
+  const rev = stats.revenue !== undefined ? +stats.revenue : leads.reduce((s, l) => s + (+l.revenue || 0), 0);
+  let html = `<div class="sect">Outreach — leady i wysylki</div>
+  <div class="qbulk">
+    <span>📋 Total: <b>${leads.length}</b></span>
+    <span>📝 Drafted: <b>${cnt('drafted')}</b></span>
+    <span>📤 Sent: <b>${cnt('sent')}</b></span>
+    <span>💬 Replied: <b>${cnt('replied')}</b></span>
+    <span>🏆 Converted: <b>${cnt('converted')}</b></span>
+    <span style="margin-left:auto">💰 Revenue: <b style="color:var(--green)">$${(+rev).toLocaleString('en-US')}</b></span>
+  </div>
+
+  <div class="sect">Dodaj lead</div>
+  <div class="form-row">
+    <input id="ld-name" placeholder="Imie / firma">
+    <input id="ld-email" placeholder="email@firma.pl">
+    <input id="ld-industry" placeholder="branza (np. e-commerce)">
+    <textarea id="ld-pitch" placeholder="krotki pitch / kontekst"></textarea>
+    <button id="ld-add">+ Dodaj</button>
+  </div>
+
+  <div class="sect">Scrape: znajdz firmy do leadow</div>
+  <div class="form-row">
+    <input id="sc-query" placeholder="np. autoserwis, kancelaria, sklep stomatologiczny" style="flex:2;min-width:200px">
+    <input id="sc-city" placeholder="miasto" style="min-width:120px">
+    <button id="sc-go">🔎 Szukaj</button>
+  </div>
+  <div id="sc-results"></div>
+
+  <div class="sect">Leady (${leads.length})</div>`;
+  html += leads.length ? leads.map(leadCard).join('') : '<div class="empty">Brak leadow. Dodaj recznie lub zescrapuj firmy.</div>';
+  list.innerHTML = html;
+
+  $('ld-add').addEventListener('click', async () => {
+    const lead = {
+      name: $('ld-name').value.trim(),
+      email: $('ld-email').value.trim(),
+      industry: $('ld-industry').value.trim(),
+      pitch: $('ld-pitch').value.trim(),
+    };
+    if (!lead.name && !lead.email) { flashToast('Imie lub email wymagane', true); return; }
+    const btn = $('ld-add'); btn.disabled = true; btn.textContent = 'Dodaje...';
+    try {
+      const r = await fetch('/api/outreach/lead', { method: 'POST', body: JSON.stringify(lead) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast('Lead dodany ✓');
+      ['ld-name','ld-email','ld-industry','ld-pitch'].forEach(id => $(id).value = '');
+      await load();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = '+ Dodaj';
+      flashToast('Endpoint /api/outreach/lead nieaktywny', true);
+    }
+  });
+
+  $('sc-go').addEventListener('click', async () => {
+    const query = $('sc-query').value.trim();
+    const city = $('sc-city').value.trim();
+    if (!query) { flashToast('Wpisz fraze', true); return; }
+    const btn = $('sc-go'); btn.disabled = true; btn.textContent = 'Szukam...';
+    const out = $('sc-results'); out.innerHTML = '<div class="empty" style="padding:14px 0">Szukam...</div>';
+    try {
+      const r = await fetch('/api/outreach/scrape', { method: 'POST', body: JSON.stringify({ query, city }) });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      const results = Array.isArray(data) ? data : (data.results || []);
+      if (!results.length) { out.innerHTML = '<div class="empty" style="padding:14px 0">Brak wynikow.</div>'; }
+      else {
+        out.innerHTML = results.map((b, i) => `<div class="lead-card" data-scrape-idx="${i}" style="cursor:pointer">
+          <div class="lead-head">
+            <span class="nm">${esc(b.name || b.title || '—')}</span>
+            <span class="em">${esc(b.email || b.url || b.phone || '')}</span>
+            ${b.industry ? `<span class="chip">${esc(b.industry)}</span>` : ''}
+            ${b.city ? `<span class="chip">${esc(b.city)}</span>` : ''}
+            <span style="margin-left:auto;color:var(--blue);font-size:12px">+ klik = dodaj jako lead</span>
+          </div>
+          ${b.description ? `<div class="lead-pitch">${esc(b.description)}</div>` : ''}
+        </div>`).join('');
+        out.querySelectorAll('[data-scrape-idx]').forEach(el => el.addEventListener('click', async () => {
+          const b = results[+el.dataset.scrapeIdx];
+          el.style.opacity = '.5';
+          try {
+            const rr = await fetch('/api/outreach/lead', { method: 'POST', body: JSON.stringify({ name: b.name || b.title, email: b.email, industry: b.industry, pitch: b.description || '', source: 'scrape', phone: b.phone, url: b.url, city: b.city }) });
+            if (!rr.ok) throw new Error(rr.status);
+            flashToast(`Dodano: ${b.name || b.title}`);
+            await load();
+          } catch { flashToast('Blad dodawania', true); el.style.opacity = '1'; }
+        }));
+      }
+    } catch (e) {
+      out.innerHTML = '<div class="empty" style="padding:14px 0">Endpoint /api/outreach/scrape niedostepny.</div>';
+    }
+    btn.disabled = false; btn.textContent = '🔎 Szukaj';
+  });
+
+  list.querySelectorAll('button[data-lead-draft]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.leadDraft;
+    b.disabled = true; b.textContent = 'Generuje...';
+    try {
+      const r = await fetch('/api/outreach/draft', { method: 'POST', body: JSON.stringify({ id }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast('Draft gotowy ✓');
+      await load();
+    } catch { b.disabled = false; b.textContent = '📝 Generuj draft'; flashToast('Endpoint /api/outreach/draft nieaktywny', true); }
+  }));
+  list.querySelectorAll('button[data-lead-status]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.leadStatus;
+    const status = b.dataset.set;
+    b.disabled = true;
+    try {
+      const r = await fetch('/api/outreach/lead', { method: 'POST', body: JSON.stringify({ id, status }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast(`Status: ${status}`);
+      await load();
+    } catch { b.disabled = false; flashToast('Endpoint nieaktywny', true); }
+  }));
+}
+
+// =============== CONTENT TAB ===============
+function postCard(p) {
+  const id = p.id || (String(p.platform || '?') + ':' + String(p.topic || '').slice(0, 30));
+  const body = p.body || p.content || '';
+  const preview = body.length > 200 ? body.slice(0, 200) + '…' : body;
+  const published = !!(p.published || p.status === 'published' || p.status === 'approved');
+  const collapsed = body.length > 200;
+  return `<div class="post-card" data-pid="${esc(id)}">
+    <div class="post-head">
+      <span class="chip" style="color:var(--blue);border-color:var(--blue)">${esc(p.platform || '?')}</span>
+      <span style="font-weight:600">${esc(p.topic || '—')}</span>
+      ${published ? '<span class="badge-status bs-converted">published</span>' : '<span class="badge-status bs-new">draft</span>'}
+      <span style="margin-left:auto;color:var(--dim);font-size:11.5px">${p.ts ? new Date(p.ts).toLocaleString('pl-PL') : ''}</span>
+    </div>
+    <div class="post-body ${collapsed ? 'collapsed' : ''}" data-full="${esc(body)}">${esc(preview)}</div>
+    <div class="card-acts">
+      ${collapsed ? '<button data-post-expand>Rozwin</button>' : ''}
+      <button data-post-copy>📋 Kopiuj</button>
+      ${!published ? '<button data-post-approve>✅ Zatwierdz</button>' : ''}
+      <button data-post-del>🗑 Usun</button>
+    </div>
+  </div>`;
+}
+
+function renderContent(list) {
+  const posts = (CONTENT && Array.isArray(CONTENT.posts)) ? CONTENT.posts : [];
+  const stats = (CONTENT && CONTENT.stats) || {};
+  const published = stats.published !== undefined ? stats.published : posts.filter(p => p.published || p.status === 'published' || p.status === 'approved').length;
+  const wk = stats.thisWeek !== undefined ? stats.thisWeek : 0;
+  let html = `<div class="sect">Content — generator postow</div>
+  <div class="qbulk">
+    <span>📝 Total: <b>${posts.length}</b></span>
+    <span>✅ Published: <b>${published}</b></span>
+    <span>📅 Tydz: <b>${wk}</b></span>
+  </div>
+
+  <div class="sect">Szybki generator</div>
+  <div class="form-row">
+    <select id="ct-platform" style="flex:0 0 130px">
+      <option value="twitter">Twitter / X</option>
+      <option value="linkedin">LinkedIn</option>
+      <option value="reddit">Reddit</option>
+      <option value="devto">dev.to</option>
+    </select>
+    <input id="ct-topic" placeholder="np. jak zbudowalem income-radar w weekend" style="flex:2;min-width:220px">
+    <button id="ct-gen">✨ Generuj</button>
+  </div>
+
+  <div class="sect">Pomysly na content (10)</div>
+  <div class="form-row">
+    <input id="ci-niche" placeholder="np. automatyzacja n8n dla MSP" style="flex:2;min-width:220px">
+    <button id="ci-go">💡 10 pomyslow</button>
+  </div>
+  <div id="ci-results"></div>
+
+  <div class="sect">Kalendarz 7 dni</div>
+  <div class="form-row">
+    <input id="cal-niche" placeholder="niche (opcjonalnie)" style="flex:2;min-width:180px">
+    <button id="cal-go">📅 Generuj kalendarz</button>
+  </div>
+  <div id="cal-results"></div>
+
+  <div class="sect">Posty (${posts.length})</div>`;
+  html += posts.length ? posts.map(postCard).join('') : '<div class="empty">Brak postow. Wygeneruj pierwszy powyzej.</div>';
+  list.innerHTML = html;
+
+  $('ct-gen').addEventListener('click', async () => {
+    const platform = $('ct-platform').value;
+    const topic = $('ct-topic').value.trim();
+    if (!topic) { flashToast('Wpisz temat', true); return; }
+    const btn = $('ct-gen'); btn.disabled = true; btn.textContent = 'Generuje...';
+    try {
+      const r = await fetch('/api/content/generate', { method: 'POST', body: JSON.stringify({ platform, topic }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast('Post wygenerowany ✓');
+      $('ct-topic').value = '';
+      await load();
+    } catch { flashToast('Endpoint /api/content/generate nieaktywny', true); }
+    btn.disabled = false; btn.textContent = '✨ Generuj';
+  });
+
+  $('ci-go').addEventListener('click', async () => {
+    const niche = $('ci-niche').value.trim();
+    if (!niche) { flashToast('Wpisz nisze', true); return; }
+    const btn = $('ci-go'); btn.disabled = true; btn.textContent = 'Generuje...';
+    const out = $('ci-results'); out.innerHTML = '<div class="empty" style="padding:10px 0">Generuje...</div>';
+    try {
+      const r = await fetch('/api/content/ideas', { method: 'POST', body: JSON.stringify({ niche, count: 10 }) });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      const ideas = Array.isArray(data) ? data : (data.ideas || []);
+      out.innerHTML = ideas.length
+        ? '<div class="qcard"><ol style="margin:0 0 0 22px;line-height:1.7">' + ideas.map(i => `<li>${esc(typeof i === 'string' ? i : (i.title || i.topic || JSON.stringify(i)))}</li>`).join('') + '</ol></div>'
+        : '<div class="empty" style="padding:10px 0">Brak wynikow.</div>';
+    } catch { out.innerHTML = '<div class="empty" style="padding:10px 0">Endpoint /api/content/ideas niedostepny.</div>'; }
+    btn.disabled = false; btn.textContent = '💡 10 pomyslow';
+  });
+
+  $('cal-go').addEventListener('click', async () => {
+    const niche = $('cal-niche').value.trim();
+    const btn = $('cal-go'); btn.disabled = true; btn.textContent = 'Generuje...';
+    const out = $('cal-results'); out.innerHTML = '<div class="empty" style="padding:10px 0">Generuje...</div>';
+    try {
+      const r = await fetch('/api/content/ideas', { method: 'POST', body: JSON.stringify({ niche, mode: 'calendar', days: 7 }) });
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      const items = Array.isArray(data) ? data : (data.calendar || data.ideas || []);
+      const days = ['Pon','Wt','Sr','Czw','Pt','Sob','Ndz'];
+      out.innerHTML = items.length
+        ? '<div class="timeline">' + items.slice(0, 7).map((it, i) => {
+            const text = typeof it === 'string' ? it : (it.body || it.topic || it.title || JSON.stringify(it));
+            const platform = it && it.platform ? ` · <span class="chip">${esc(it.platform)}</span>` : '';
+            return `<div class="timeline-item"><div class="timeline-day">Dzien ${i + 1} (${days[i] || ''})${platform}</div><div class="timeline-body">${esc(text)}</div></div>`;
+          }).join('') + '</div>'
+        : '<div class="empty" style="padding:10px 0">Brak danych.</div>';
+    } catch { out.innerHTML = '<div class="empty" style="padding:10px 0">Endpoint /api/content/ideas niedostepny.</div>'; }
+    btn.disabled = false; btn.textContent = '📅 Generuj kalendarz';
+  });
+
+  list.querySelectorAll('[data-post-expand]').forEach(b => b.addEventListener('click', () => {
+    const card = b.closest('.post-card');
+    const body = card.querySelector('.post-body');
+    body.textContent = body.dataset.full || body.textContent;
+    body.classList.remove('collapsed');
+    b.remove();
+  }));
+  list.querySelectorAll('[data-post-copy]').forEach(b => b.addEventListener('click', async () => {
+    const card = b.closest('.post-card');
+    const body = card.querySelector('.post-body');
+    const text = body.dataset.full || body.textContent;
+    try { await navigator.clipboard.writeText(text); flashToast('Skopiowano ✓'); }
+    catch { flashToast('Blad kopiowania', true); }
+  }));
+  list.querySelectorAll('[data-post-approve]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.closest('.post-card').dataset.pid;
+    b.disabled = true; b.textContent = '...';
+    try {
+      const r = await fetch('/api/content/generate', { method: 'POST', body: JSON.stringify({ id, action: 'approve' }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast('Zatwierdzono ✓');
+      await load();
+    } catch { b.disabled = false; b.textContent = '✅ Zatwierdz'; flashToast('Endpoint nieaktywny', true); }
+  }));
+  list.querySelectorAll('[data-post-del]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.closest('.post-card').dataset.pid;
+    b.disabled = true;
+    try {
+      const r = await fetch('/api/content/generate', { method: 'POST', body: JSON.stringify({ id, action: 'delete' }) });
+      if (!r.ok) throw new Error(r.status);
+      await load();
+    } catch { b.disabled = false; flashToast('Endpoint nieaktywny', true); }
+  }));
+}
+
+// =============== EARNINGS MODAL ===============
+function openEarningsModal() {
+  const ledger = (EARNINGS && Array.isArray(EARNINGS.ledger) && EARNINGS.ledger.length)
+    ? EARNINGS.ledger
+    : Object.entries(STATE.ledger || {}).map(([id, e]) => ({ ts: e?.ts, amountUSD: e?.amountUSD, source: (id.split(':')[0] || 'item'), title: e?.title || id }));
+  const total = (EARNINGS && +EARNINGS.total) || ledger.reduce((s, e) => s + (+e.amountUSD || 0), 0);
+  const today = (EARNINGS && +EARNINGS.today) || 0;
+  const week  = (EARNINGS && +EARNINGS.week)  || 0;
+  const month = (EARNINGS && +EARNINGS.month) || 0;
+  const streams = (EARNINGS && EARNINGS.streams) || {};
+  const streamEntries = Object.entries(streams).filter(([, v]) => +v > 0).sort((a, b) => (+b[1]) - (+a[1]));
+  const maxVal = streamEntries.length ? Math.max(...streamEntries.map(([, v]) => +v || 0)) : 0;
+
+  const bars = streamEntries.length
+    ? '<div class="bar-chart">' + streamEntries.map(([k, v]) => {
+        const pct = maxVal ? Math.max(2, Math.round(((+v) / maxVal) * 100)) : 2;
+        return `<div class="bar-row"><div class="bar-label">${esc(k)}</div><div class="bar-fill" style="width:${pct}%"></div><div class="bar-val">$${(+v || 0).toLocaleString('en-US')}</div></div>`;
+      }).join('') + '</div>'
+    : '<div class="empty" style="padding:14px 0">Brak rozbicia na strumienie — dodaj zarobki z odpowiednim source.</div>';
+
+  const lastLedger = ledger.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 10);
+  const ledgerHtml = lastLedger.length
+    ? '<div class="ledger-list">' + lastLedger.map(e => {
+        const d = e.ts ? new Date(e.ts) : null;
+        const ds = d ? `${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '—';
+        return `<div class="ledger-row">
+          <span class="lr-ts">${ds}</span>
+          <span title="${esc(e.title || e.note || '')}">${esc((e.title || e.note || '—').slice(0, 60))}</span>
+          <span class="lr-src">${esc(e.source || '')}</span>
+          <span class="lr-amt">$${(+e.amountUSD || 0).toLocaleString('en-US')}</span>
+        </div>`;
+      }).join('') + '</div>'
+    : '<div class="empty" style="padding:10px 0">Pusty ledger.</div>';
+
+  const sources = ['useme','freelancer','upwork','algora','opire','h1bounty','airdrop','content','outreach','other'];
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `<div class="modal">
+    <span class="modal-close">×</span>
+    <h2>💰 Zarobki — pelny widok ($${(+total).toLocaleString('en-US')})</h2>
+    <div class="ern-trio">
+      <div class="ern-cell"><div class="v">$${(+today).toLocaleString('en-US')}</div><div class="k">Dzisiaj</div></div>
+      <div class="ern-cell"><div class="v">$${(+week).toLocaleString('en-US')}</div><div class="k">Ten tydzien</div></div>
+      <div class="ern-cell"><div class="v">$${(+month).toLocaleString('en-US')}</div><div class="k">Ten miesiac</div></div>
+    </div>
+    <div class="sect" style="margin-top:6px">Strumienie</div>
+    ${bars}
+    <div class="sect">Szybkie dodanie</div>
+    <div class="form-row">
+      <input id="er-amt" type="number" placeholder="kwota USD" style="flex:0 0 110px">
+      <select id="er-src" style="flex:0 0 130px">${sources.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+      <input id="er-note" placeholder="notka (opcjonalnie)">
+      <button id="er-add">+ Dodaj</button>
+    </div>
+    <div class="sect">Ostatnie wpisy (10)</div>
+    ${ledgerHtml}
+  </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('.modal-close').addEventListener('click', close);
+  ov.querySelector('#er-add').addEventListener('click', async () => {
+    const amount = +ov.querySelector('#er-amt').value;
+    const source = ov.querySelector('#er-src').value;
+    const note   = ov.querySelector('#er-note').value.trim();
+    if (!amount) { flashToast('Wpisz kwote', true); return; }
+    const btn = ov.querySelector('#er-add'); btn.disabled = true; btn.textContent = 'Dodaje...';
+    try {
+      const r = await fetch('/api/earnings/add', { method: 'POST', body: JSON.stringify({ amountUSD: amount, source, note, ts: Date.now() }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast(`+$${amount} ✓`);
+      close();
+      await load();
+    } catch {
+      btn.disabled = false; btn.textContent = '+ Dodaj';
+      flashToast('Endpoint /api/earnings/add nieaktywny', true);
+    }
+  });
+}
+
+// =============== QUICK ACTIONS (bottom bar) ===============
+function openMiniModal(title, formHtml, onSubmit) {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `<div class="modal" style="max-width:480px">
+    <span class="modal-close">×</span>
+    <h2>${esc(title)}</h2>
+    ${formHtml}
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+      <button class="mm-cancel" style="padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer">Anuluj</button>
+      <button class="mm-ok" style="padding:8px 14px;border-radius:6px;border:1px solid var(--green);background:rgba(74,222,128,.15);color:var(--green);cursor:pointer">OK</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  ov.querySelector('.modal-close').addEventListener('click', close);
+  ov.querySelector('.mm-cancel').addEventListener('click', close);
+  ov.querySelector('.mm-ok').addEventListener('click', async () => {
+    const ok = await onSubmit(ov);
+    if (ok !== false) close();
+  });
+  return ov;
+}
+
+function quickGenContent() {
+  openMiniModal('📝 Szybko generuj post', `
+    <div class="form-row" style="margin:0">
+      <select id="qg-pl" style="flex:0 0 130px"><option value="twitter">Twitter</option><option value="linkedin">LinkedIn</option><option value="reddit">Reddit</option><option value="devto">dev.to</option></select>
+      <input id="qg-topic" placeholder="temat posta" style="flex:1">
+    </div>
+  `, async (ov) => {
+    const platform = ov.querySelector('#qg-pl').value;
+    const topic = ov.querySelector('#qg-topic').value.trim();
+    if (!topic) { flashToast('Wpisz temat', true); return false; }
+    try {
+      const r = await fetch('/api/content/generate', { method: 'POST', body: JSON.stringify({ platform, topic }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast('Post wygenerowany ✓');
+      await load();
+    } catch { flashToast('Endpoint /api/content/generate nieaktywny', true); return false; }
+  });
+}
+
+function quickAddLead() {
+  openMiniModal('👤 Szybko dodaj lead', `
+    <div class="form-row" style="margin:0">
+      <input id="ql-name" placeholder="imie / firma">
+      <input id="ql-email" placeholder="email">
+    </div>
+    <div class="form-row" style="margin:8px 0 0">
+      <input id="ql-industry" placeholder="branza">
+    </div>
+  `, async (ov) => {
+    const name = ov.querySelector('#ql-name').value.trim();
+    const email = ov.querySelector('#ql-email').value.trim();
+    if (!name && !email) { flashToast('Imie lub email wymagane', true); return false; }
+    try {
+      const r = await fetch('/api/outreach/lead', { method: 'POST', body: JSON.stringify({ name, email, industry: ov.querySelector('#ql-industry').value.trim() }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast('Lead dodany ✓');
+      await load();
+    } catch { flashToast('Endpoint /api/outreach/lead nieaktywny', true); return false; }
+  });
+}
+
+function quickAddEarning() {
+  const sources = ['useme','freelancer','upwork','algora','opire','h1bounty','airdrop','content','outreach','other'];
+  openMiniModal('💰 Dodaj zarobek', `
+    <div class="form-row" style="margin:0">
+      <input id="qe-amt" type="number" placeholder="kwota USD" style="flex:0 0 130px">
+      <select id="qe-src" style="flex:0 0 130px">${sources.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+    </div>
+    <div class="form-row" style="margin:8px 0 0">
+      <input id="qe-note" placeholder="notka">
+    </div>
+  `, async (ov) => {
+    const amount = +ov.querySelector('#qe-amt').value;
+    if (!amount) { flashToast('Wpisz kwote', true); return false; }
+    try {
+      const r = await fetch('/api/earnings/add', { method: 'POST', body: JSON.stringify({ amountUSD: amount, source: ov.querySelector('#qe-src').value, note: ov.querySelector('#qe-note').value.trim(), ts: Date.now() }) });
+      if (!r.ok) throw new Error(r.status);
+      flashToast(`+$${amount} ✓`);
+      await load();
+    } catch { flashToast('Endpoint /api/earnings/add nieaktywny', true); return false; }
+  });
+}
+
+// expose quick actions for inline onclick handlers in quickbar
+window.quickGenContent = quickGenContent;
+window.quickAddLead = quickAddLead;
+window.quickAddEarning = quickAddEarning;
+window.openEarningsModal = openEarningsModal;
+
+setInterval(tickCountdown, 1000);
+tickCountdown();
 </script>
 </body>
 </html>
