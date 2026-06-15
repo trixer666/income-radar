@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { refreshAll } from './fetch.mjs';
 import { runHotelChecks, readWatches, writeWatches } from './hotels.mjs';
+import { runOfferQueue } from './offers.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const cfg = JSON.parse(await readFile(join(ROOT, 'config.json'), 'utf8'));
@@ -155,6 +156,15 @@ const server = http.createServer(async (req, res) => {
       for (const [k, v] of Object.entries(next)) if (v === null) delete next[k];
       await writeFile(DRAFTS, JSON.stringify(next, null, 1), 'utf8');
       return send(res, 200, { ok: true });
+    }
+    if (url.pathname === '/api/offers/send' && req.method === 'POST') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const { jobId = null, dryRun = false } = JSON.parse(body || '{}');
+      const c = await freshCfg();
+      const { items } = await readJson(ITEMS, { items: [] });
+      const results = await runOfferQueue(c, items, { dryRun, onlyJobId: jobId, notify: (t) => tgSend(c, t) });
+      return send(res, 200, { results });
     }
     if (url.pathname === '/api/refresh' && req.method === 'POST') {
       await doRefresh();

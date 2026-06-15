@@ -124,8 +124,8 @@
 </div>
 
 <script>
-const STATUSES = ['', 'obserwuje', 'agent', 'szkic', 'wyslane', 'odpowiedz', 'wygrane', 'przegrane', 'claim', 'PR wyslany', 'wyplacone', 'ukryte'];
-const STATUS_LABELS = { '': '—', 'obserwuje': '👀 obserwuję', 'agent': '🤖 do agenta', 'szkic': '📝 szkic gotowy', 'wyslane': '📤 wysłane', 'odpowiedz': '💬 jest odpowiedź', 'wygrane': '🏆 wygrane', 'przegrane': '✖ przegrane', 'claim': '🎯 claim', 'PR wyslany': '🔃 PR wysłany', 'wyplacone': '💰 wypłacone', 'ukryte': '🙈 ukryj' };
+const STATUSES = ['', 'obserwuje', 'agent', 'szkic', 'do-wyslania', 'wyslane', 'odpowiedz', 'wygrane', 'przegrane', 'claim', 'PR wyslany', 'wyplacone', 'ukryte'];
+const STATUS_LABELS = { '': '—', 'obserwuje': '👀 obserwuję', 'agent': '🤖 do agenta', 'szkic': '📝 szkic gotowy', 'do-wyslania': '✅ zatwierdzone do wysyłki', 'wyslane': '📤 wysłane', 'odpowiedz': '💬 jest odpowiedź', 'wygrane': '🏆 wygrane', 'przegrane': '✖ przegrane', 'claim': '🎯 claim', 'PR wyslany': '🔃 PR wysłany', 'wyplacone': '💰 wypłacone', 'ukryte': '🙈 ukryj' };
 const TAB_SRC = { bounty: ['opire', 'algora', 'github'], useme: ['useme', 'freelancer'], konkursy: ['devpost'] };
 const ACCOUNTS = [
   { sect: 'Automatyzacja (zaloguj się raz — agent działa na Twoich sesjach)' },
@@ -264,12 +264,27 @@ function bindStatus(list) {
 function renderAgent(list) {
   const queued = DB.items.filter(it => (STATE.itemStatus[it.id] || '') === 'agent');
   const drafts = Object.entries(DRAFTS).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
-  let html = `<div class="sect">W kolejce do agenta (${queued.length})</div>`;
+  const approved = Object.keys(STATE.itemStatus || {}).filter(id => STATE.itemStatus[id] === 'do-wyslania' && id.startsWith('useme:'));
+  let html = `<div class="sect">Auto-wysyłka ofert (Useme)</div>
+  <div class="draft" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button id="sendQueue" ${approved.length ? '' : 'disabled'} style="${approved.length ? 'color:var(--green);border-color:var(--green)' : ''}">📨 Wyślij zatwierdzone (${approved.length})</button>
+    <span style="color:var(--dim);font-size:12.5px">Zatwierdź szkic poniżej → silnik składa ofertę przez Twoją przeglądarkę (min 7 dni, link do demo, prawa autorskie — automatycznie). Wymaga uruchomionego chrome-debug.cmd.</span>
+    <span id="sendResult" style="font-size:12.5px"></span>
+  </div>`;
+  html += `<div class="sect">W kolejce do agenta (${queued.length})</div>`;
   html += queued.length
     ? queued.map(it => rowHtml(it, null)).join('')
     : '<div class="empty">Pusto. Ustaw przy pozycji status „🤖 do agenta”, potem powiedz agentowi: <b>kolejka</b>.</div>';
   html += `<div class="sect">Szkice od agenta (${drafts.length})</div>`;
-  html += drafts.length ? drafts.map(([id, d]) => `
+  html += drafts.length ? drafts.map(([id, d]) => {
+    const isUseme = id.startsWith('useme:');
+    const st = STATE.itemStatus[id] || '';
+    const approveBtn = isUseme
+      ? (st === 'do-wyslania'
+        ? `<button data-unapprove="${esc(id)}" style="color:var(--green);border-color:var(--green)">✅ zatwierdzone — cofnij</button>`
+        : (st === 'wyslane' ? '<span class="chip" style="color:var(--green);border-color:var(--green)">📤 wysłane</span>' : `<button data-approve="${esc(id)}">✅ zatwierdź do wysyłki</button>`))
+      : '';
+    return `
     <div class="draft">
       <div class="hd">
         <span class="chip">${esc(d.kind || 'analiza')}</span>
@@ -278,12 +293,28 @@ function renderAgent(list) {
       </div>
       <pre>${esc(d.body || '')}</pre>
       <div class="acts">
+        ${approveBtn}
         <button data-copy="${esc(id)}">Kopiuj</button>
         <button data-del="${esc(id)}">Usuń szkic</button>
       </div>
-    </div>`).join('') : '<div class="empty">Brak szkiców.</div>';
+    </div>`; }).join('') : '<div class="empty">Brak szkiców.</div>';
   list.innerHTML = html;
   bindStatus(list);
+  const setStatus = async (id, val) => { STATE.itemStatus[id] = val; await fetch('/api/state', { method: 'POST', body: JSON.stringify({ itemStatus: { [id]: val } }) }); render(); };
+  list.querySelectorAll('button[data-approve]').forEach(b => b.addEventListener('click', () => setStatus(b.dataset.approve, 'do-wyslania')));
+  list.querySelectorAll('button[data-unapprove]').forEach(b => b.addEventListener('click', () => setStatus(b.dataset.unapprove, 'szkic')));
+  const sq = $('sendQueue');
+  if (sq) sq.addEventListener('click', async () => {
+    sq.disabled = true; sq.textContent = '📨 Wysyłam…'; $('sendResult').textContent = '';
+    try {
+      const r = await (await fetch('/api/offers/send', { method: 'POST', body: JSON.stringify({}) })).json();
+      const ok = (r.results || []).filter(x => x.sent).length;
+      const fail = (r.results || []).length - ok;
+      $('sendResult').innerHTML = `<span style="color:var(--green)">wysłano: ${ok}</span>${fail ? ` · <span style="color:#e06c75">błąd: ${fail}</span>` : ''}`;
+      STATE = await (await fetch('/api/state')).json();
+    } catch (e) { $('sendResult').textContent = 'błąd połączenia'; }
+    setTimeout(() => render(), 1800);
+  });
   list.querySelectorAll('button[data-copy]').forEach(b => b.addEventListener('click', async () => {
     await navigator.clipboard.writeText((DRAFTS[b.dataset.copy] || {}).body || '');
     b.textContent = 'Skopiowano ✓'; setTimeout(() => { b.textContent = 'Kopiuj'; }, 1500);
