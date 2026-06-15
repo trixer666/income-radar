@@ -45,6 +45,39 @@ async function saveJson(path, data) {
   await writeFile(path, JSON.stringify(data, null, 2));
 }
 
+// Human-friendly "Xm ago" — used in broadcast headers
+function formatTimeAgo(ts) {
+  const diff = Date.now() - Number(ts);
+  if (!Number.isFinite(diff) || diff < 1000) return 'just now';
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  return `${day}d ago`;
+}
+
+// Initialize a subscriber record (idempotent — never clobbers premium fields)
+function ensureUser(subs, chatId, username) {
+  if (!subs.subscribers[chatId]) {
+    subs.subscribers[chatId] = {
+      username: username || 'unknown',
+      plan: 'free',
+      joinedAt: Date.now(),
+      bonusSignals: 0,
+      referrals: [],
+    };
+  } else {
+    const rec = subs.subscribers[chatId];
+    if (username && (!rec.username || rec.username === 'unknown')) rec.username = username;
+    if (rec.bonusSignals == null) rec.bonusSignals = 0;
+    if (!Array.isArray(rec.referrals)) rec.referrals = [];
+  }
+  return subs.subscribers[chatId];
+}
+
 // ============= SCRAPE PUBLIC CHANNELS =============
 async function scrapeChannel(source) {
   try {
@@ -138,7 +171,7 @@ async function sendMsg(token, chatId, text, opts) {
   } catch {}
 }
 
-function formatSignal(parsed, rawText) {
+function formatSignal(parsed, rawText, opts = {}) {
   if (!parsed.isSignal) return null;
   const dirEmoji = parsed.direction === 'LONG' ? '\u{1F7E2}' :
                    parsed.direction === 'SHORT' ? '\u{1F534}' : '\u{1F4CA}';
@@ -146,7 +179,10 @@ function formatSignal(parsed, rawText) {
   const pair = parsed.pair || 'CRYPTO';
   const divider = '\u2500'.repeat(20);
 
-  let msg = `${dirEmoji} *${dirText}* \u2022 *${pair}*\n${divider}\n`;
+  // Header: optional #N tag + direction/pair + optional time-since
+  const numTag = opts.signalNum ? `*#${opts.signalNum}* \u2022 ` : '';
+  const ago = opts.sourceTs ? ` \u2022 _${formatTimeAgo(opts.sourceTs)}_` : '';
+  let msg = `${numTag}${dirEmoji} *${dirText}* \u2022 *${pair}*${ago}\n${divider}\n`;
   if (parsed.entry) msg += `\u{1F4CD} Entry: \`$${parsed.entry}\`\n`;
   if (parsed.targets.length) {
     parsed.targets.forEach((t, i) => {
@@ -171,7 +207,7 @@ function formatSignal(parsed, rawText) {
 
   msg += `\u23F0 ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC\n`;
   msg += `${divider}\n`;
-  msg += `\u26A0\uFE0F _Not financial advice. DYOR._\n`;
+  msg += `\u26A0\uFE0F _NFA. DYOR. Past \u2260 future._\n`;
   msg += `\u{1F514} /subscribe for all signals`;
   return msg;
 }
@@ -197,7 +233,8 @@ async function broadcastSignal(bots, signalText) {
 
 // ============= SCRAPE + BROADCAST LOOP =============
 async function scrapeAndBroadcast(bots, cfg) {
-  const scraped = await loadJson(SCRAPED_PATH, { lastIds: {}, signals: [] });
+  const scraped = await loadJson(SCRAPED_PATH, { lastIds: {}, signals: [], totalCount: 0 });
+  if (typeof scraped.totalCount !== 'number') scraped.totalCount = scraped.signals?.length || 0;
   let newSignals = 0;
 
   for (const source of SIGNAL_SOURCES) {
@@ -212,7 +249,9 @@ async function scrapeAndBroadcast(bots, cfg) {
       const parsed = parseSignal(msg.text);
       if (!parsed.isSignal) continue;
 
-      const formatted = formatSignal(parsed, msg.text);
+      scraped.totalCount += 1;
+      const signalNum = scraped.totalCount;
+      const formatted = formatSignal(parsed, msg.text, { signalNum, sourceTs: msg.ts });
       if (!formatted) continue;
 
       const taggedMsg = formatted + `\n\n_Source: ${source.id}_`;
@@ -225,7 +264,7 @@ async function scrapeAndBroadcast(bots, cfg) {
       await sendMsg(cfg.telegramToken, cfg.telegramChatId,
         `\u{1F4E1} Signal scraped from ${source.id}:\n${taggedMsg}`);
 
-      scraped.signals.push({ ...parsed, source: source.id, ts: Date.now() });
+      scraped.signals.push({ ...parsed, source: source.id, ts: Date.now(), num: signalNum });
       newSignals++;
     }
   }
@@ -251,10 +290,13 @@ async function setupBot(username, bot) {
       commands: [
         { command: 'start', description: 'Info & pricing' },
         { command: 'signals', description: 'Latest signals' },
+        { command: 'free', description: 'Free signal (1/24h)' },
         { command: 'subscribe', description: `Premium $${SUB_PRICE}/msc` },
         { command: 'paid', description: 'Confirm payment' },
         { command: 'status', description: 'Check subscription' },
         { command: 'performance', description: 'Stats & breakdown' },
+        { command: 'pnl', description: 'Signal P&L history' },
+        { command: 'referral', description: 'Your invite link & bonuses' },
         { command: 'help', description: 'How to use this bot' },
       ]
     })
@@ -287,7 +329,7 @@ async function handleAdminMessage(adminToken, msg, cfg) {
   }
   if (text === '/start') {
     await sendMsg(adminToken, chatId,
-      '\u{1F6E1}\uFE0F *Admin Panel*\n\n/revenue \u2014 earnings\n/bots \u2014 bot status\n/subs \u2014 subscribers\n/scraped \u2014 recent signals\n/signal LONG BTC/USDT 65000 TP:67000 SL:63000 \u2014 manual signal\n/broadcast Msg \u2014 send to all');
+      '\u{1F6E1}\uFE0F *Admin Panel*\n\n/revenue \u2014 earnings\n/bots \u2014 bot status\n/subs \u2014 subscribers\n/users \u2014 unique users\n/scraped \u2014 recent signals\n/signal LONG BTC/USDT 65000 TP:67000 SL:63000 \u2014 manual signal\n/broadcast Msg \u2014 send to all');
   } else if (text === '/bots') {
     const bd = await loadJson(BOTS_PATH, {}); let resp = '\u{1F916} *Bots:*\n';
     for (const [u,b] of Object.entries(bd.signal_bots||{})) {
@@ -301,6 +343,19 @@ async function handleAdminMessage(adminToken, msg, cfg) {
       const a = Object.values(s.subscribers).filter(x=>x.plan==='premium'&&x.expiresAt>Date.now()).length;
       resp += `\u2022 @${u}: ${a} premium\n`; tot += a;
     } resp += `\n\u{1F4B0} MRR: $${tot*SUB_PRICE}`;
+    await sendMsg(adminToken, chatId, resp);
+  } else if (text === '/users') {
+    const bd = await loadJson(BOTS_PATH, {});
+    const unique = new Set();
+    let resp = '\u{1F465} *Users (all bots)*\n';
+    for (const u of Object.keys(bd.signal_bots||{})) {
+      const s = await loadJson(join(DATA,`subs-${u}.json`),{subscribers:{}});
+      const ids = Object.keys(s.subscribers||{});
+      const prem = ids.filter(id => s.subscribers[id].plan === 'premium' && s.subscribers[id].expiresAt > Date.now()).length;
+      for (const id of ids) unique.add(id);
+      resp += `\u2022 @${u}: ${ids.length} total / ${prem} premium\n`;
+    }
+    resp += `\n\u{1F3AF} *Total unique:* ${unique.size}`;
     await sendMsg(adminToken, chatId, resp);
   } else if (text === '/scraped') {
     const sc = await loadJson(SCRAPED_PATH,{signals:[]}); let resp = '\u{1F4E1} *Last 5:*\n';
@@ -318,7 +373,21 @@ async function handleAdminMessage(adminToken, msg, cfg) {
     let targets=[],sl=null,lev=null,notes='';
     for (const p of parts.slice(3)) { if(p.startsWith('TP:'))targets=p.slice(3).split(','); else if(p.startsWith('SL:'))sl=p.slice(3); else if(p.startsWith('LEV:'))lev=p.slice(4); else notes+=p+' '; }
     const sig = {direction:dir,pair,entry,targets,stopLoss:sl,leverage:lev,notes:notes.trim(),source:'manual',isSignal:true};
-    const fmt = formatSignal(sig,''); if(fmt){const bd=await loadJson(BOTS_PATH,{}); await broadcastSignal(bd.signal_bots||{},fmt); await sendMsg(adminToken,chatId,'\u2705 Broadcast done');}
+    const sc = await loadJson(SCRAPED_PATH, { lastIds:{}, signals:[], totalCount:0 });
+    sc.totalCount = (sc.totalCount || sc.signals?.length || 0) + 1;
+    const sigNum = sc.totalCount;
+    const now = Date.now();
+    const fmt = formatSignal(sig, '', { signalNum: sigNum, sourceTs: now });
+    if (fmt) {
+      const bd = await loadJson(BOTS_PATH, {});
+      const tagged = fmt + `\n\n_Source: manual_`;
+      await broadcastSignal(bd.signal_bots || {}, tagged);
+      sc.signals = sc.signals || [];
+      sc.signals.push({ ...sig, source: 'manual', ts: now, num: sigNum });
+      if (sc.signals.length > 500) sc.signals = sc.signals.slice(-500);
+      await saveJson(SCRAPED_PATH, sc);
+      await sendMsg(adminToken, chatId, `\u2705 Broadcast done (#${sigNum})`);
+    }
   } else if (text.startsWith('/broadcast ')) {
     const t = text.slice(11); const bd = await loadJson(BOTS_PATH,{}); let n=0;
     for (const [u,b] of Object.entries(bd.signal_bots||{})) {
@@ -339,6 +408,13 @@ async function main() {
   console.log(`[multi-bot] Signal bots: ${Object.keys(signalBots).join(', ')}`);
   console.log(`[multi-bot] Sources: ${SIGNAL_SOURCES.length}`);
 
+  // Ensure subscriber files exist for every signal bot (idempotent)
+  for (const u of Object.keys(signalBots)) {
+    const p = join(DATA, `subs-${u}.json`);
+    try { await readFile(p); }
+    catch { await saveJson(p, { subscribers: {}, pendingPayments: {}, stats: { revenue: 0 } }); console.log(`[init] created ${p}`); }
+  }
+
   for (const [u,b] of Object.entries(signalBots)) await setupBot(u,b);
 
   // Admin bot: private commands only
@@ -347,6 +423,7 @@ async function main() {
     body: JSON.stringify({commands:[
       {command:'start',description:'Admin panel'},{command:'revenue',description:'Earnings'},
       {command:'bots',description:'Bot status'},{command:'subs',description:'Subscribers'},
+      {command:'users',description:'Unique users (all bots)'},
       {command:'scraped',description:'Recent signals'}
     ]})
   });
@@ -448,18 +525,45 @@ async function main() {
 async function handleBotMessage(botUsername, bot, msg, cfg) {
   const chatId = String(msg.chat.id);
   const text = (msg.text || '').trim();
-  const from = msg.from;
+  const from = msg.from || {};
   const isOwner = chatId === String(cfg.telegramChatId);
   const subsPath = join(DATA, `subs-${botUsername}.json`);
   const subs = await loadJson(subsPath, { subscribers: {}, pendingPayments: {}, stats: { revenue: 0 } });
 
   const nicheNames = { solana: 'Solana Sniper', btc_eth: 'Crypto PRO', general: 'Signal Bot' };
   const niche = nicheNames[bot.niche] || 'Signal Bot';
+  const ONE_DAY = 24 * 3600 * 1000;
 
-  if (text === '/start') {
+  // /start (optionally with ref_USERID deep-link param)
+  if (text === '/start' || text.startsWith('/start ')) {
+    const wasNew = !subs.subscribers[chatId];
+    const rec = ensureUser(subs, chatId, from.username);
+
+    // Referral capture — only on first /start, and only if referrer differs
+    const refMatch = text.match(/^\/start\s+ref_(\w+)/);
+    if (refMatch && wasNew) {
+      const referrerId = refMatch[1];
+      if (referrerId !== chatId) {
+        rec.referredBy = referrerId;
+        // Make sure referrer has a record even if they pre-date the upgrade
+        const refRec = ensureUser(subs, referrerId, null);
+        if (!refRec.referrals.includes(chatId)) {
+          refRec.referrals.push(chatId);
+          refRec.bonusSignals = (refRec.bonusSignals || 0) + 3;
+          // Notify referrer (fire-and-forget — failure must not block /start)
+          sendMsg(bot.token, referrerId,
+            `\u{1F389} *New referral!*\n@${from.username || 'someone'} joined via your link.\n\n` +
+            `\u{1F381} +3 bonus signal views (total: *${refRec.bonusSignals}*)\n` +
+            `Use them anytime with /free.`).catch(() => {});
+        }
+      }
+    }
+    await saveJson(subsPath, subs);
+
     const startKb = {
       inline_keyboard: [
         [{ text: '\u{1F4CA} Signals', callback_data: 'signals' }, { text: '\u{1F48E} Premium', callback_data: 'subscribe' }],
+        [{ text: '\u{1F381} Free signal', callback_data: 'free' }, { text: '\u{1F517} Invite', callback_data: 'referral' }],
         [{ text: '\u{1F4C8} Performance', callback_data: 'perf' }, { text: '\u2753 Help', callback_data: 'help' }],
       ],
     };
@@ -469,11 +573,113 @@ async function handleBotMessage(botUsername, bot, msg, cfg) {
       `\u{1F4B0} Price: *$${SUB_PRICE} USDT/msc*\n\n` +
       `Tap a button below or send /help`,
       { reply_markup: startKb });
-    if (!isOwner) {
-      await sendMsg(cfg.telegramToken, cfg.telegramChatId,
-        `\u{1F464} @${botUsername}: new user @${from.username || 'anon'} (${chatId})`);
+
+    if (wasNew) {
+      if (!isOwner) {
+        await sendMsg(cfg.telegramToken, cfg.telegramChatId,
+          `\u{1F464} @${botUsername}: new user @${from.username || 'anon'} (${chatId})`);
+      }
+      // Delayed sample-signal pitch — non-blocking, swallows errors
+      setTimeout(() => {
+        sendMsg(bot.token, chatId,
+          `\u{1F381} Want a sample signal? Type /free to get one now \u2014 no payment needed.`).catch(() => {});
+      }, 5000);
     }
+  } else if (text === '/referral') {
+    ensureUser(subs, chatId, from.username);
+    await saveJson(subsPath, subs);
+    const rec = subs.subscribers[chatId];
+    const link = `https://t.me/${botUsername}?start=ref_${chatId}`;
+    const refCount = rec.referrals.length;
+    const bonus = rec.bonusSignals || 0;
+    await sendMsg(bot.token, chatId,
+      `\u{1F517} *Your referral link*\n\n\`${link}\`\n\n` +
+      `\u{1F465} You referred: *${refCount}* user${refCount === 1 ? '' : 's'}\n` +
+      `\u{1F381} Bonus signals: *${bonus}*\n\n` +
+      `Each friend who taps your link = *+3 bonus signal views* (use via /free).\n` +
+      `Share it anywhere \u2014 Twitter, Discord, group chats.`);
+  } else if (text === '/pnl') {
+    const scraped = await loadJson(SCRAPED_PATH, { signals: [] });
+    const withTargets = (scraped.signals || []).filter(s => s.entry && s.targets && s.targets.length);
+    const last10 = withTargets.slice(-10);
+    const divider = '\u2500'.repeat(20);
+    let resp = `\u{1F4CA} *Signal P&L \u2014 last ${last10.length}*\n${divider}\n`;
+    if (!last10.length) {
+      resp += `_No signals with full entry+targets yet. Check back soon._\n`;
+    } else {
+      let wins = 0, totalPct = 0, counted = 0;
+      for (const s of last10) {
+        const entry = parseFloat(s.entry);
+        const target = parseFloat(s.targets[0]);
+        if (!Number.isFinite(entry) || !Number.isFinite(target) || entry === 0) continue;
+        const isLong = s.direction === 'LONG';
+        // Theoretical: LONG profits when target > entry, SHORT when target < entry
+        const pct = isLong
+          ? ((target - entry) / entry) * 100
+          : ((entry - target) / entry) * 100;
+        const dirEmo = isLong ? '\u{1F7E2}' : s.direction === 'SHORT' ? '\u{1F534}' : '\u{1F4CA}';
+        const sign = pct >= 0 ? '+' : '';
+        // Display mark: treat first target as "reached" per spec
+        const mark = pct >= 0 ? '\u2705' : '\u274C';
+        const tag = s.num ? `#${s.num} ` : '';
+        resp += `${dirEmo} ${tag}${s.direction || 'SIG'} ${s.pair || '?'} \`$${s.entry}\` \u2192 \`$${s.targets[0]}\` ${sign}${pct.toFixed(1)}% ${mark}\n`;
+        if (pct >= 0) wins++;
+        totalPct += pct;
+        counted++;
+      }
+      if (counted > 0) {
+        const winRate = ((wins / counted) * 100).toFixed(0);
+        const avg = (totalPct / counted).toFixed(2);
+        resp += `\n*Win rate:* ${winRate}% \u2022 *Avg:* ${avg}%\n`;
+      }
+    }
+    resp += `\n\u26A0\uFE0F _Theoretical results based on first TP. Not financial advice._`;
+    await sendMsg(bot.token, chatId, resp);
+  } else if (text === '/free') {
+    const rec = ensureUser(subs, chatId, from.username);
+    const isPrem = rec.plan === 'premium' && rec.expiresAt > Date.now();
+    if (isPrem) {
+      await sendMsg(bot.token, chatId, '\u{1F48E} You already have Premium \u2014 every signal lands automatically. Try /signals or /pnl.');
+      return;
+    }
+    const now = Date.now();
+    const last = rec.lastFreeSignal || 0;
+    const cooldownActive = (now - last) < ONE_DAY;
+    const bonus = rec.bonusSignals || 0;
+
+    if (cooldownActive && bonus <= 0) {
+      const hoursLeft = Math.max(1, Math.ceil((ONE_DAY - (now - last)) / 3600000));
+      await sendMsg(bot.token, chatId,
+        `\u23F3 You already got your free signal today. /subscribe for unlimited.\n\n` +
+        `_Next free signal in ~${hoursLeft}h._\n` +
+        `Tip: invite a friend with /referral to earn bonus views.`);
+      return;
+    }
+
+    const scraped = await loadJson(SCRAPED_PATH, { signals: [] });
+    const latest = (scraped.signals || []).slice(-1)[0];
+    if (!latest) {
+      await sendMsg(bot.token, chatId, '\u{1F4ED} No signals scraped yet \u2014 nothing to hand out. Try again in a few minutes.');
+      return;
+    }
+    const fmt = formatSignal(latest, '', { signalNum: latest.num, sourceTs: latest.ts });
+    if (!fmt) {
+      await sendMsg(bot.token, chatId, '\u{1F4ED} Latest signal could not be formatted. Try again later.');
+      return;
+    }
+    // Consume: prefer bonus while in cooldown, otherwise mark the daily slot used
+    if (cooldownActive && bonus > 0) {
+      rec.bonusSignals = bonus - 1;
+    } else {
+      rec.lastFreeSignal = now;
+    }
+    await saveJson(subsPath, subs);
+    const header = (cooldownActive && bonus > 0)
+      ? `\u{1F381} *Bonus signal* (${rec.bonusSignals} bonus left)`
+      : `\u{1F381} *Your free signal of the day*`;
+    await sendMsg(bot.token, chatId, `${header}\n\n${fmt}\n\n_Source: ${latest.source || 'aggregated'}_`);
   } else if (text === '/subscribe') {
+    ensureUser(subs, chatId, from.username);
     await sendMsg(bot.token, chatId,
       `\u{1F48E} *Premium \u2014 $${SUB_PRICE}/msc*\n\n` +
       `Send *${SUB_PRICE} USDT (TRC-20)* to:\n\n\`${USDT_ADDRESS}\`\n\n` +
@@ -488,7 +694,9 @@ async function handleBotMessage(botUsername, bot, msg, cfg) {
       const days = Math.ceil((sub.expiresAt - Date.now()) / 86400000);
       await sendMsg(bot.token, chatId, `\u{1F48E} *PREMIUM* \u2014 ${days} days left`);
     } else {
-      await sendMsg(bot.token, chatId, `\u{1F4CA} *FREE* plan\n\n/subscribe for Premium`);
+      const bonus = sub?.bonusSignals || 0;
+      const extra = bonus > 0 ? `\n\u{1F381} Bonus signals: *${bonus}* (use /free)` : '';
+      await sendMsg(bot.token, chatId, `\u{1F4CA} *FREE* plan${extra}\n\n/subscribe for Premium`);
     }
   } else if (text === '/signals') {
     const scraped = await loadJson(SCRAPED_PATH, { signals: [] });
@@ -506,9 +714,10 @@ async function handleBotMessage(botUsername, bot, msg, cfg) {
       const limit = isPrem ? 5 : 1;
       let response = recent.slice(-limit).map(s => {
         const dir = s.direction === 'LONG' ? '\u{1F7E2}' : s.direction === 'SHORT' ? '\u{1F534}' : '\u{1F4CA}';
-        return `${dir} *${s.pair || '?'}* ${s.direction || ''} ${s.entry ? 'Entry: `$' + s.entry + '`' : ''}`;
+        const tag = s.num ? `*#${s.num}* ` : '';
+        return `${tag}${dir} *${s.pair || '?'}* ${s.direction || ''} ${s.entry ? 'Entry: `$' + s.entry + '`' : ''}`;
       }).join('\n');
-      if (!isPrem) response += `\n\n\u{1F512} _${Math.max(0, recent.length - limit)} more in Premium_ \u2014 /subscribe`;
+      if (!isPrem) response += `\n\n\u{1F512} _${Math.max(0, recent.length - limit)} more in Premium_ \u2014 /subscribe\n\u{1F381} Or use /free for a full signal.`;
       await sendMsg(bot.token, chatId, response, { reply_markup: sigKb });
     }
   } else if (text === '/performance' || text === '/perf') {
@@ -538,12 +747,15 @@ async function handleBotMessage(botUsername, bot, msg, cfg) {
   } else if (text === '/help') {
     await sendMsg(bot.token, chatId,
       `\u2753 *How to use this bot:*\n\n` +
-      `1. /signals \u2014 see latest signals\n` +
-      `2. /subscribe \u2014 get Premium for ALL signals\n` +
-      `3. Send *$${SUB_PRICE} USDT (TRC-20)* to the address shown\n` +
-      `4. Press /paid after sending\n` +
-      `5. Bot verifies on blockchain automatically\n\n` +
-      `Free users: 1 signal preview\nPremium: ALL signals instantly + whale alerts\n\n` +
+      `\u2022 /signals \u2014 latest signal previews\n` +
+      `\u2022 /free \u2014 1 full signal per 24h (no payment)\n` +
+      `\u2022 /pnl \u2014 theoretical P&L on recent signals\n` +
+      `\u2022 /referral \u2014 invite link + bonus signals\n` +
+      `\u2022 /subscribe \u2014 Premium ($${SUB_PRICE} USDT/msc)\n` +
+      `\u2022 /paid \u2014 after sending USDT (TRC-20)\n` +
+      `\u2022 /status \u2014 your plan & bonuses\n` +
+      `\u2022 /performance \u2014 aggregate stats\n\n` +
+      `Premium = ALL signals instantly + whale alerts.\n` +
       `Questions? Contact @trixer666`);
   } else if (!isOwner && text.length > 3) {
     await sendMsg(cfg.telegramToken, cfg.telegramChatId,
