@@ -287,7 +287,7 @@ function renderAgent(list) {
     return `
     <div class="draft">
       <div class="hd">
-        <span class="chip">${esc(d.kind || 'analiza')}</span>
+        <span class="chip" style="${d.kind==='llm-oferta'?'color:#61afef;border-color:#61afef':d.kind==='auto'?'color:var(--dim)':''}">${d.kind==='llm-oferta'?'🤖 LLM szyta':esc(d.kind || 'analiza')}</span>
         <a href="${esc(d.url || '#')}" target="_blank" rel="noopener">${esc(d.title || id)}</a>
         <span style="color:var(--dim);font-size:11.5px;margin-left:auto">${d.ts ? new Date(d.ts).toLocaleString('pl-PL') : ''}</span>
       </div>

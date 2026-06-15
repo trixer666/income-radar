@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { refreshAll } from './fetch.mjs';
 import { runHotelChecks, readWatches, writeWatches } from './hotels.mjs';
 import { runOfferQueue } from './offers.mjs';
+import { generateOfferDraft } from './llm.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const cfg = JSON.parse(await readFile(join(ROOT, 'config.json'), 'utf8'));
@@ -67,6 +68,9 @@ async function autoDrafts(payload) {
   const drafts = await readJson(DRAFTS, {});
   const state = await readJson(STATE, { itemStatus: {}, accounts: {}, ledger: {} });
   let added = 0;
+  const cLocal = await freshCfg();
+  const llmCap = cLocal.llmPerRun ?? 3;
+  let llmCalls = 0;
   for (const it of payload.items) {
     if (added >= 10) break;
     if (!['useme', 'freelancer'].includes(it.source)) continue;
@@ -74,7 +78,15 @@ async function autoDrafts(payload) {
     const fresh = it.ageDays === null || it.ageDays === undefined || it.ageDays <= 7;
     const fit = (it.skillMatch || 0) >= 1 && it.verdict !== 'crowd';
     if (!fresh || !fit) continue;
-    drafts[it.id] = { ts: Date.now(), kind: 'auto', title: it.title, url: it.url, body: autoDraftBody(it) };
+    let body = null, kind = 'auto';
+    if (llmCalls < llmCap) {
+      llmCalls++;
+      const r = await generateOfferDraft(it).catch(e => ({ ok: false, error: e.message }));
+      if (r.ok && r.body) { body = r.body; kind = 'llm-oferta'; console.log(`[llm-draft] +${it.id}`); }
+      else console.log(`[llm-draft] fallback ${it.id}: ${r.error || '?'}`);
+    }
+    if (!body) body = autoDraftBody(it);
+    drafts[it.id] = { ts: Date.now(), kind, title: it.title, url: it.url, body };
     state.itemStatus[it.id] = 'szkic';
     state.statusTs = state.statusTs || {};
     state.statusTs[it.id] = Date.now();
