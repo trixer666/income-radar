@@ -14,6 +14,7 @@ const SCRAPED_PATH = join(DATA, 'scraped-signals.json');
 const USDT_ADDRESS = 'TCtQGdjjEcsnmWFkevrbiAWkJ9D9MCy8FS';
 const SUB_PRICE = 30;
 const SCRAPE_INTERVAL = 5 * 60 * 1000; // 5 min
+const TRONGRID_API = 'https://api.trongrid.io';
 
 // Public signal channels to scrape (via t.me/s/ web preview)
 const SIGNAL_SOURCES = [
@@ -353,6 +354,59 @@ async function main() {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({description:'Private admin panel. Not a public bot.'})
   });
+
+  // TRON payment checking — co 60s sprawdz blockchain dla KAZDEGO bota
+  const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+  const SUB_DAYS = 30;
+  setInterval(async () => {
+    try {
+      const res = await fetch(`${TRONGRID_API}/v1/accounts/${USDT_ADDRESS}/transactions/trc20?limit=20&contract_address=${USDT_CONTRACT}`,
+        {headers: {'Accept': 'application/json'}, signal: AbortSignal.timeout(10000)});
+      const txData = await res.json();
+      const txs = txData?.data || [];
+
+      for (const [botUser, bot] of Object.entries(signalBots)) {
+        const subsPath = join(DATA, `subs-${botUser}.json`);
+        const subs = await loadJson(subsPath, {subscribers:{}, pendingPayments:{}, stats:{revenue:0}});
+        let changed = false;
+
+        for (const tx of txs) {
+          if (tx.to !== USDT_ADDRESS) continue;
+          const amount = Number(tx.value) / 1e6;
+          if (amount < SUB_PRICE * 0.95) continue;
+          const txHash = tx.transaction_id;
+          if (Object.values(subs.subscribers).some(s => s.txHash === txHash)) continue;
+
+          const pending = Object.entries(subs.pendingPayments).filter(([_,p]) => !p.confirmed).sort((a,b) => a[1].ts - b[1].ts);
+          if (pending.length > 0) {
+            const [chatId, pend] = pending[0];
+            const expiresAt = Date.now() + SUB_DAYS * 24 * 3600 * 1000;
+            subs.subscribers[chatId] = {username: pend.username||'unknown', plan:'premium', expiresAt, txHash, paidAt: Date.now(), amount};
+            subs.pendingPayments[chatId].confirmed = true;
+            subs.stats.revenue = (subs.stats.revenue||0) + amount;
+            changed = true;
+
+            const expDate = new Date(expiresAt).toISOString().slice(0,10);
+            await sendMsg(bot.token, chatId, `\u2705 *Payment confirmed!*\n\nAmount: ${amount} USDT\nPlan: Premium (${SUB_DAYS} days)\nExpires: ${expDate}\n\nYou now have access to ALL signals. Use /signals`);
+            await sendMsg(adminBot.token, cfg.telegramChatId, `\u{1F4B0} PAYMENT! $${amount} USDT\n@${botUser} \u2190 @${pend.username||chatId}\nTx: ${txHash.slice(0,16)}...`);
+            console.log(`[payment] $${amount} from ${chatId} on @${botUser}`);
+          }
+        }
+
+        // Check expired subs
+        for (const [chatId, sub] of Object.entries(subs.subscribers)) {
+          if (sub.plan === 'premium' && sub.expiresAt < Date.now()) {
+            sub.plan = 'expired'; changed = true;
+            await sendMsg(bot.token, chatId, `\u23F0 Your subscription expired.\n\n/subscribe to renew ($${SUB_PRICE} USDT/msc)`);
+          }
+        }
+        if (changed) await saveJson(subsPath, subs);
+      }
+    } catch (e) {
+      if (Math.random() < 0.02) console.error('[tron]', e.message);
+    }
+  }, 60_000);
+  console.log(`[multi-bot] TRON payment checking: ON (every 60s)`);
 
   const initial = await scrapeAndBroadcast(signalBots, cfg);
   console.log(`[multi-bot] Initial scrape: ${initial} new signals`);
