@@ -275,63 +275,117 @@ async function setupBot(username, bot) {
   console.log(`[setup] @${username} (${bot.niche}) configured`);
 }
 
+// ============= ADMIN BOT (jarkens_bot — owner only) =============
+async function handleAdminMessage(adminToken, msg, cfg) {
+  const chatId = String(msg.chat.id);
+  const text = (msg.text || '').trim();
+  const isOwner = chatId === String(cfg.telegramChatId);
+  if (!isOwner) {
+    await sendMsg(adminToken, chatId, '\u{1F512} Private admin bot. Access denied.');
+    return;
+  }
+  if (text === '/start') {
+    await sendMsg(adminToken, chatId,
+      '\u{1F6E1}\uFE0F *Admin Panel*\n\n/revenue \u2014 earnings\n/bots \u2014 bot status\n/subs \u2014 subscribers\n/scraped \u2014 recent signals\n/signal LONG BTC/USDT 65000 TP:67000 SL:63000 \u2014 manual signal\n/broadcast Msg \u2014 send to all');
+  } else if (text === '/bots') {
+    const bd = await loadJson(BOTS_PATH, {}); let resp = '\u{1F916} *Bots:*\n';
+    for (const [u,b] of Object.entries(bd.signal_bots||{})) {
+      const r = await fetch('https://api.telegram.org/bot'+b.token+'/getMe').then(r=>r.json()).catch(()=>({ok:false}));
+      resp += `\u2022 @${u} (${b.niche}) ${r.ok?'\u2705':'\u274C'}\n`;
+    } await sendMsg(adminToken, chatId, resp);
+  } else if (text === '/subs') {
+    const bd = await loadJson(BOTS_PATH, {}); let resp = '\u{1F4CA} *Subs:*\n', tot = 0;
+    for (const u of Object.keys(bd.signal_bots||{})) {
+      const s = await loadJson(join(DATA,`subs-${u}.json`),{subscribers:{}});
+      const a = Object.values(s.subscribers).filter(x=>x.plan==='premium'&&x.expiresAt>Date.now()).length;
+      resp += `\u2022 @${u}: ${a} premium\n`; tot += a;
+    } resp += `\n\u{1F4B0} MRR: $${tot*SUB_PRICE}`;
+    await sendMsg(adminToken, chatId, resp);
+  } else if (text === '/scraped') {
+    const sc = await loadJson(SCRAPED_PATH,{signals:[]}); let resp = '\u{1F4E1} *Last 5:*\n';
+    for (const s of sc.signals.slice(-5)) resp += `${s.direction==='LONG'?'\u{1F7E2}':'\u{1F534}'} ${s.pair||'?'} from ${s.source||'?'}\n`;
+    await sendMsg(adminToken, chatId, resp);
+  } else if (text === '/revenue') {
+    const bd = await loadJson(BOTS_PATH, {}); let rev = 0, act = 0;
+    for (const u of Object.keys(bd.signal_bots||{})) {
+      const s = await loadJson(join(DATA,`subs-${u}.json`),{subscribers:{},stats:{revenue:0}});
+      rev += s.stats?.revenue||0; act += Object.values(s.subscribers).filter(x=>x.plan==='premium'&&x.expiresAt>Date.now()).length;
+    }
+    await sendMsg(adminToken, chatId, `\u{1F4B0} *Revenue*\nTotal: $${rev}\nActive: ${act}\nMRR: $${act*SUB_PRICE}\nWallet: \`${USDT_ADDRESS}\``);
+  } else if (text.startsWith('/signal ')) {
+    const parts = text.slice(8).split(' '); const dir = parts[0]?.toUpperCase(); const pair = parts[1]; const entry = parts[2];
+    let targets=[],sl=null,lev=null,notes='';
+    for (const p of parts.slice(3)) { if(p.startsWith('TP:'))targets=p.slice(3).split(','); else if(p.startsWith('SL:'))sl=p.slice(3); else if(p.startsWith('LEV:'))lev=p.slice(4); else notes+=p+' '; }
+    const sig = {direction:dir,pair,entry,targets,stopLoss:sl,leverage:lev,notes:notes.trim(),source:'manual',isSignal:true};
+    const fmt = formatSignal(sig,''); if(fmt){const bd=await loadJson(BOTS_PATH,{}); await broadcastSignal(bd.signal_bots||{},fmt); await sendMsg(adminToken,chatId,'\u2705 Broadcast done');}
+  } else if (text.startsWith('/broadcast ')) {
+    const t = text.slice(11); const bd = await loadJson(BOTS_PATH,{}); let n=0;
+    for (const [u,b] of Object.entries(bd.signal_bots||{})) {
+      const s = await loadJson(join(DATA,`subs-${u}.json`),{subscribers:{}});
+      for (const cid of Object.keys(s.subscribers)) { await sendMsg(b.token,cid,t); n++; }
+    } await sendMsg(adminToken,chatId,`\u{1F4E2} Sent to ${n} users`);
+  }
+}
+
 // ============= MAIN =============
 async function main() {
   const cfg = await loadJson(join(ROOT, 'config.json'), {});
-  const bots = await loadJson(BOTS_PATH, {});
+  const botData = await loadJson(BOTS_PATH, {});
+  const adminBot = botData.admin;
+  const signalBots = botData.signal_bots || {};
 
-  console.log(`[multi-bot] Starting ${Object.keys(bots).length} bots`);
-  console.log(`[multi-bot] USDT: ${USDT_ADDRESS}`);
-  console.log(`[multi-bot] Sources: ${SIGNAL_SOURCES.map(s => s.id).join(', ')}`);
+  console.log(`[multi-bot] Admin: @${adminBot.username} (owner only)`);
+  console.log(`[multi-bot] Signal bots: ${Object.keys(signalBots).join(', ')}`);
+  console.log(`[multi-bot] Sources: ${SIGNAL_SOURCES.length}`);
 
-  // Setup all bots
-  for (const [username, bot] of Object.entries(bots)) {
-    await setupBot(username, bot);
-  }
+  for (const [u,b] of Object.entries(signalBots)) await setupBot(u,b);
 
-  // Initial scrape
-  const initial = await scrapeAndBroadcast(bots, cfg);
+  // Admin bot: private commands only
+  await fetch(`https://api.telegram.org/bot${adminBot.token}/setMyCommands`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({commands:[
+      {command:'start',description:'Admin panel'},{command:'revenue',description:'Earnings'},
+      {command:'bots',description:'Bot status'},{command:'subs',description:'Subscribers'},
+      {command:'scraped',description:'Recent signals'}
+    ]})
+  });
+  await fetch(`https://api.telegram.org/bot${adminBot.token}/setMyDescription`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({description:'Private admin panel. Not a public bot.'})
+  });
+
+  const initial = await scrapeAndBroadcast(signalBots, cfg);
   console.log(`[multi-bot] Initial scrape: ${initial} new signals`);
 
-  // Scrape loop
   setInterval(async () => {
-    const n = await scrapeAndBroadcast(bots, cfg);
+    const n = await scrapeAndBroadcast(signalBots, cfg);
     if (n > 0) console.log(`[multi-bot] Scraped ${n} new signals`);
   }, SCRAPE_INTERVAL);
 
-  // Also run signal-bot.mjs logic for handling /subscribe /paid etc
-  // on ALL bots simultaneously
-  console.log(`[multi-bot] Polling all bots for user commands...`);
-
-  // Simple poll for each bot
+  console.log(`[multi-bot] Polling...`);
   const offsets = {};
   while (true) {
-    for (const [username, bot] of Object.entries(bots)) {
+    for (const [username, bot] of Object.entries(signalBots)) {
       try {
-        const res = await fetch(
-          `https://api.telegram.org/bot${bot.token}/getUpdates?offset=${offsets[username] || 0}&timeout=2&allowed_updates=${encodeURIComponent('["message","callback_query"]')}`,
-          { signal: AbortSignal.timeout(5000) }
-        );
+        const res = await fetch(`https://api.telegram.org/bot${bot.token}/getUpdates?offset=${offsets[username]||0}&timeout=2&allowed_updates=${encodeURIComponent('["message","callback_query"]')}`,{signal:AbortSignal.timeout(5000)});
         const data = await res.json();
-        for (const u of (data.result || [])) {
+        for (const u of (data.result||[])) {
           offsets[username] = u.update_id + 1;
-          if (u.message) {
-            await handleBotMessage(username, bot, u.message, cfg);
-          } else if (u.callback_query) {
-            const cb = u.callback_query;
-            const cId = String(cb.message.chat.id);
-            // Answer callback to remove loading indicator
-            await fetch(`https://api.telegram.org/bot${bot.token}/answerCallbackQuery`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ callback_query_id: cb.id }),
-            });
-            // Route callback as if it were a slash command
-            await handleBotMessage(username, bot, { chat: { id: cId }, from: cb.from, text: '/' + cb.data }, cfg);
+          if (u.message) await handleBotMessage(username, bot, u.message, cfg);
+          else if (u.callback_query) {
+            const cb = u.callback_query; const cId = String(cb.message.chat.id);
+            await fetch(`https://api.telegram.org/bot${bot.token}/answerCallbackQuery`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({callback_query_id:cb.id})});
+            await handleBotMessage(username, bot, {chat:{id:cId}, from:cb.from, text:'/'+cb.data}, cfg);
           }
         }
       } catch {}
     }
+    // Poll admin bot
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${adminBot.token}/getUpdates?offset=${offsets.admin||0}&timeout=1&allowed_updates=${encodeURIComponent('["message"]')}`,{signal:AbortSignal.timeout(3000)});
+      const data = await res.json();
+      for (const u of (data.result||[])) { offsets.admin = u.update_id+1; if(u.message) await handleAdminMessage(adminBot.token,u.message,cfg); }
+    } catch {}
     await new Promise(r => setTimeout(r, 500));
   }
 }
