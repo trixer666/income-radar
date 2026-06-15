@@ -73,4 +73,6 @@ node server.mjs
 
 **Patryk** — [trixer666.github.io](https://trixer666.github.io) | Automation, bots, AI orchestration
 
-Available for freelance work: automation pipelines, Telegram bots, web scrapers, AI integrations, n8n workflows.
+Available for freelance work — **contact via Telegram: [@jarkens_bot](https://t.me/jarkens_bot)**
+
+Services: automation pipelines, Telegram bots, web scrapers, AI integrations, n8n workflows.
