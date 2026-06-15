@@ -35,45 +35,39 @@ async def generate_tts(text, output_path, voice="en_male"):
     return output_path
 
 
-# ============= VIDEO CREATION =============
+# ============= VIDEO CREATION (HTML template → screenshot → video) =============
 def create_signal_video(signal_data, output_path, voice="en_male"):
-    """Create a 30-60s vertical video (9:16) from a crypto signal"""
+    """Create pro 9:16 video from HTML template + TTS audio"""
+    direction = signal_data.get("direction") or "LONG"
+    pair = signal_data.get("pair") or "BTC/USDT"
+    entry = signal_data.get("entry") or "?"
+    targets = signal_data.get("targets") or []
+    stop_loss = signal_data.get("stopLoss") or ""
+    leverage = signal_data.get("leverage") or ""
+    source = signal_data.get("source") or "aggregated"
 
-    # Generate script from signal
-    direction = signal_data.get("direction", "LONG")
-    pair = signal_data.get("pair", "BTC/USDT")
-    entry = signal_data.get("entry", "?")
-    targets = signal_data.get("targets", [])
-    stop_loss = signal_data.get("stopLoss", "?")
-    source = signal_data.get("source", "aggregated")
-
-    arrow = "UP" if direction == "LONG" else "DOWN"
     emoji_dir = "bullish" if direction == "LONG" else "bearish"
-
-    script = f"""
-    Breaking crypto signal alert!
-    {pair} is looking {emoji_dir}.
-    Direction: {direction}.
-    Entry price: {entry} dollars.
-    {"Target: " + ", then ".join(targets[:3]) + " dollars." if targets else ""}
-    {"Stop loss at " + str(stop_loss) + " dollars." if stop_loss and stop_loss != "?" else ""}
-    This signal was aggregated from 15 top analyst channels.
-    Want more signals like this? Follow the link in bio.
-    Crypto Signal Hub. Your edge in the market.
-    """
-
-    # Clean up script
-    script = re.sub(r'\s+', ' ', script).strip()
+    script = (
+        f"Breaking crypto signal alert! "
+        f"{pair} is looking {emoji_dir}. Direction: {direction}. "
+        f"Entry price: {entry} dollars. "
+        + (f"Target: {', then '.join(str(t) for t in targets[:3])} dollars. " if targets else "")
+        + (f"Stop loss at {stop_loss} dollars. " if stop_loss else "")
+        + "This signal was aggregated from 15 top analyst channels. "
+        + "Want more signals like this? Follow at tee dot me slash c s hub signals bot. "
+        + "Crypto Signal Hub. Your edge in the market."
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
         audio_path = tmp / "voice.mp3"
+        frame_path = tmp / "frame.png"
         video_path = tmp / "video.mp4"
 
-        # 1. Generate TTS audio
+        # 1. Generate TTS
         asyncio.run(generate_tts(script, audio_path, voice))
 
-        # Get audio duration
+        # Get duration
         result = subprocess.run(
             ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
              "-of", "default=noprint_wrappers=1:nokey=1", str(audio_path)],
@@ -81,48 +75,59 @@ def create_signal_video(signal_data, output_path, voice="en_male"):
         )
         duration = float(result.stdout.strip()) if result.stdout.strip() else 30
 
-        # 2. Create video with FFmpeg
-        # Dark gradient background + animated text overlay
-        dir_color = "0x00FF88" if direction == "LONG" else "0xFF4444"
-        dir_symbol = "▲" if direction == "LONG" else "▼"
+        # 2. Render HTML template as screenshot using Playwright
+        template_path = ROOT / "data" / "video-template.html"
+        params = f"d={direction}&p={pair}&e={entry}"
+        for i, t in enumerate(targets[:3]):
+            params += f"&t{i+1}={t}"
+        if stop_loss: params += f"&sl={stop_loss}"
+        if leverage: params += f"&lev={leverage}"
+        params += f"&src={source}"
 
-        # Build drawtext filters for signal info
-        texts = [
-            f"drawtext=text='{dir_symbol} {direction}':fontsize=72:fontcolor={dir_color}:x=(w-text_w)/2:y=180:fontfile=C\\\\:/Windows/Fonts/arialbd.ttf",
-            f"drawtext=text='{pair}':fontsize=64:fontcolor=white:x=(w-text_w)/2:y=280:fontfile=C\\\\:/Windows/Fonts/arialbd.ttf",
-            f"drawtext=text='Entry\\: ${entry}':fontsize=40:fontcolor=0xCCCCCC:x=(w-text_w)/2:y=420:fontfile=C\\\\:/Windows/Fonts/arial.ttf",
-        ]
+        # Use Playwright sync API to screenshot
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page(viewport={"width": 1080, "height": 1920})
+                file_url = template_path.as_uri() + "?" + params
+                page.goto(file_url)
+                page.wait_for_timeout(2500)  # Wait for CSS animations
+                page.screenshot(path=str(frame_path))
+                browser.close()
+        except Exception as e:
+            print(f"[video] Playwright screenshot failed: {e}, using FFmpeg fallback")
+            # Fallback: simple dark bg with text
+            dir_color = "0x00FF88" if direction == "LONG" else "0xFF4444"
+            cmd = ["ffmpeg", "-y", "-f", "lavfi", "-i", f"color=c=0x0a0a1a:s=1080x1920:d=1",
+                   "-vf", f"drawtext=text='{direction} {pair}':fontsize=72:fontcolor={dir_color}:x=(w-text_w)/2:y=(h-text_h)/2",
+                   "-frames:v", "1", str(frame_path)]
+            subprocess.run(cmd, capture_output=True, timeout=10)
 
-        y_pos = 500
-        for i, tp in enumerate(targets[:3]):
-            texts.append(f"drawtext=text='TP{i+1}\\: ${tp}':fontsize=36:fontcolor=0x00FF88:x=(w-text_w)/2:y={y_pos}:fontfile=C\\\\:/Windows/Fonts/arial.ttf")
-            y_pos += 60
+        if not frame_path.exists():
+            print("[video] Frame generation failed entirely")
+            return None
 
-        if stop_loss != "?":
-            texts.append(f"drawtext=text='SL\\: ${stop_loss}':fontsize=36:fontcolor=0xFF4444:x=(w-text_w)/2:y={y_pos}:fontfile=C\\\\:/Windows/Fonts/arial.ttf")
-            y_pos += 80
-
-        texts.append(f"drawtext=text='t.me/cshub_signals_bot':fontsize=28:fontcolor=0x00BBFF:x=(w-text_w)/2:y={y_pos+40}:fontfile=C\\\\:/Windows/Fonts/arial.ttf")
-        texts.append(f"drawtext=text='Crypto Signal Hub':fontsize=24:fontcolor=0x888888:x=(w-text_w)/2:y={y_pos+80}:fontfile=C\\\\:/Windows/Fonts/arial.ttf")
-
-        filter_text = ",".join(texts)
-
+        # 3. Combine: static frame (looped) + audio → video
+        # Add subtle zoom animation for more dynamic feel
         cmd = [
             "ffmpeg", "-y",
-            "-f", "lavfi", "-i", f"color=c=0x0a0a1a:s=1080x1920:d={duration}",
+            "-loop", "1", "-i", str(frame_path),
             "-i", str(audio_path),
-            "-vf", filter_text,
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-            "-c:a", "aac", "-b:a", "128k",
-            "-pix_fmt", "yuv420p",
+            "-vf", (
+                f"scale=1120:1990,crop=1080:1920:(iw-1080)/2*(1-t/{duration}):(ih-1920)/2,"
+                "format=yuv420p"
+            ),
+            "-c:v", "libx264", "-preset", "fast", "-crf", "20",
+            "-c:a", "aac", "-b:a", "192k",
+            "-t", str(min(duration + 1, 60)),
             "-shortest",
+            "-movflags", "+faststart",
             str(video_path)
         ]
-
         subprocess.run(cmd, capture_output=True, timeout=120)
 
         if video_path.exists():
-            # Copy to output
             import shutil
             shutil.copy2(str(video_path), str(output_path))
             return str(output_path)
