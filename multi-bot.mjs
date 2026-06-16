@@ -2,9 +2,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-const execFileAsync = promisify(execFile);
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const DATA = join(ROOT, 'data');
@@ -209,10 +206,12 @@ function formatSignal(parsed, rawText, opts = {}) {
     const e = parseFloat(parsed.entry);
     const t0 = parseFloat(parsed.targets[0]);
     const sl = parseFloat(parsed.stopLoss);
-    if (Number.isFinite(e) && Number.isFinite(t0) && Number.isFinite(sl) && e !== sl) {
-      const rr = (t0 - e) / (e - sl);
-      if (Number.isFinite(rr) && rr > 0) {
-        msg += `\n\u{1F4CA} Risk/Reward: 1:${rr.toFixed(1)}\n`;
+    if (Number.isFinite(e) && Number.isFinite(t0) && Number.isFinite(sl)) {
+      const risk = Math.abs(e - sl);
+      const reward = Math.abs(t0 - e);
+      if (risk > 0) {
+        const rr = (reward / risk).toFixed(1);
+        msg += `\n\u{1F4CA} Risk/Reward: 1:${rr}\n`;
       }
     }
   }
@@ -696,10 +695,23 @@ async function handleBotMessage(botUsername, bot, msg, cfg) {
       `\u{1F48E} *Premium \u2014 $${SUB_PRICE}/msc*\n\n` +
       `Send *${SUB_PRICE} USDT (TRC-20)* to:\n\n\`${USDT_ADDRESS}\`\n\n` +
       `\u26A0\uFE0F Network: *TRC-20 (TRON)* only!\n\nThen press /paid`);
-    subs.pendingPayments[chatId] = { username: from.username, ts: Date.now() };
-    await saveJson(subsPath, subs);
   } else if (text === '/paid') {
-    await sendMsg(bot.token, chatId, '\u{1F50D} Checking blockchain... (1-5 min)\n\nContact @trixer666 if issues.');
+    const isPrem = subs.subscribers[chatId]?.plan === 'premium' && subs.subscribers[chatId]?.expiresAt > Date.now();
+    if (isPrem) {
+      await sendMsg(bot.token, chatId, '\u2705 You already have active Premium! Use /signals to see all signals.');
+      return;
+    }
+    if (!subs.pendingPayments[chatId] || subs.pendingPayments[chatId].confirmed) {
+      subs.pendingPayments[chatId] = { username: from.username, ts: Date.now() };
+      await saveJson(subsPath, subs);
+    }
+    await sendMsg(bot.token, chatId,
+      '\u{1F50D} *Checking blockchain...*\n\n' +
+      'Bot verifies USDT TRC-20 payments every 60 seconds.\n' +
+      'If correct amount was sent, you\u2019ll get Premium automatically within 1-5 minutes.\n\n' +
+      `Expected: *${SUB_PRICE}+ USDT* to \`${USDT_ADDRESS}\`\n` +
+      'Network: *TRC-20 (TRON)* only\n\n' +
+      'Still waiting after 10 min? Contact @trixer666');
   } else if (text === '/status') {
     const sub = subs.subscribers[chatId];
     if (sub?.plan === 'premium' && sub.expiresAt > Date.now()) {
