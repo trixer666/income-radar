@@ -180,7 +180,40 @@ async function sendMsg(token, chatId, text, opts) {
   } catch {}
 }
 
-function formatSignal(parsed, rawText, opts = {}) {
+// Live crypto price via CoinGecko (free, no key). Returns USD number or null.
+async function fetchLivePrice(pair) {
+  // pair format: BTC/USDT -> coingecko id: bitcoin
+  const coinMap = {
+    'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'XRP': 'ripple',
+    'DOGE': 'dogecoin', 'ADA': 'cardano', 'DOT': 'polkadot', 'AVAX': 'avalanche-2',
+    'LINK': 'chainlink', 'MATIC': 'matic-network', 'BNB': 'binancecoin',
+    'NEAR': 'near', 'ARB': 'arbitrum', 'OP': 'optimism', 'SUI': 'sui',
+    'PEPE': 'pepe', 'WIF': 'dogwifcoin', 'JUP': 'jupiter-exchange-solana',
+    'INJ': 'injective-protocol', 'FET': 'fetch-ai', 'RNDR': 'render-token'
+  };
+  const coin = pair?.split('/')[0]?.toUpperCase();
+  const id = coinMap[coin];
+  if (!id) return null;
+  try {
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+    return data[id]?.usd || null;
+  } catch { return null; }
+}
+
+// 60s in-memory cache keyed by base coin to keep CoinGecko free tier happy
+const priceCache = {};
+async function getCachedPrice(pair) {
+  const key = pair?.split('/')[0]?.toUpperCase();
+  if (!key) return null;
+  const hit = priceCache[key];
+  if (hit && Date.now() - hit.ts < 60_000) return hit.price;
+  const price = await fetchLivePrice(pair);
+  if (price) priceCache[key] = { price, ts: Date.now() };
+  return price;
+}
+
+async function formatSignal(parsed, rawText, opts = {}) {
   if (!parsed.isSignal) return null;
   const dirEmoji = parsed.direction === 'LONG' ? '\u{1F7E2}' :
                    parsed.direction === 'SHORT' ? '\u{1F534}' : '\u{1F4CA}';
@@ -214,6 +247,12 @@ function formatSignal(parsed, rawText, opts = {}) {
         msg += `\n\u{1F4CA} Risk/Reward: 1:${rr}\n`;
       }
     }
+  }
+
+  // Live price from CoinGecko (cached 60s, best-effort)
+  if (parsed.pair) {
+    const price = await getCachedPrice(parsed.pair);
+    if (price) msg += `\n\u{1F4B5} Live: $${price.toLocaleString('en-US')}\n`;
   }
 
   msg += `\u23F0 ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC\n`;
@@ -262,7 +301,7 @@ async function scrapeAndBroadcast(bots, cfg) {
 
       scraped.totalCount += 1;
       const signalNum = scraped.totalCount;
-      const formatted = formatSignal(parsed, msg.text, { signalNum, sourceTs: msg.ts });
+      const formatted = await formatSignal(parsed, msg.text, { signalNum, sourceTs: msg.ts });
       if (!formatted) continue;
 
       const taggedMsg = formatted + `\n\n_Source: ${source.id}_`;
@@ -388,7 +427,7 @@ async function handleAdminMessage(adminToken, msg, cfg) {
     sc.totalCount = (sc.totalCount || sc.signals?.length || 0) + 1;
     const sigNum = sc.totalCount;
     const now = Date.now();
-    const fmt = formatSignal(sig, '', { signalNum: sigNum, sourceTs: now });
+    const fmt = await formatSignal(sig, '', { signalNum: sigNum, sourceTs: now });
     if (fmt) {
       const bd = await loadJson(BOTS_PATH, {});
       const tagged = fmt + `\n\n_Source: manual_`;
@@ -500,9 +539,51 @@ async function main() {
   console.log(`[multi-bot] Initial scrape: ${initial} new signals`);
 
   setInterval(async () => {
-    const n = await scrapeAndBroadcast(signalBots, cfg);
-    if (n > 0) console.log(`[multi-bot] Scraped ${n} new signals`);
+    try {
+      const n = await scrapeAndBroadcast(signalBots, cfg);
+      if (n > 0) console.log(`[multi-bot] Scraped ${n} new signals`);
+    } catch (e) {
+      console.error('[scrape] error:', e.message);
+    }
   }, SCRAPE_INTERVAL);
+
+  // Auto video generation - once per day at 12:00 UTC
+  function scheduleDaily(fn, hour = 12) {
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(hour, 0, 0, 0);
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    const delay = next - now;
+    setTimeout(() => {
+      fn();
+      setInterval(fn, 24 * 3600 * 1000);
+    }, delay);
+    console.log(`[video] Scheduled daily at ${hour}:00 UTC (in ${Math.round(delay/3600000)}h)`);
+  }
+
+  scheduleDaily(async () => {
+    try {
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const exec = promisify(execFile);
+      const py = 'C:/Users/PC/AppData/Local/Microsoft/WindowsApps/python.exe';
+      const { stdout } = await exec(py, [join(ROOT, 'video-pipeline.py')], { timeout: 120000 });
+      console.log('[video]', stdout.trim());
+      // Notify admin
+      await sendMsg(adminBot.token, cfg.telegramChatId, '\u{1F3AC} Daily video generated!\n' + stdout.trim().slice(0, 200));
+    } catch (e) {
+      console.error('[video] daily generation failed:', e.message);
+    }
+  }, 12);
+
+  // Watchdog: catch unhandled errors and keep the bot running
+  process.on('uncaughtException', (err) => {
+    console.error('[WATCHDOG] Uncaught:', err.message);
+    // Do not exit - keep the bot running
+  });
+  process.on('unhandledRejection', (err) => {
+    console.error('[WATCHDOG] Rejection:', err?.message || err);
+  });
 
   console.log(`[multi-bot] Polling...`);
   const offsets = {};
@@ -673,7 +754,7 @@ async function handleBotMessage(botUsername, bot, msg, cfg) {
       await sendMsg(bot.token, chatId, '\u{1F4ED} No signals scraped yet \u2014 nothing to hand out. Try again in a few minutes.');
       return;
     }
-    const fmt = formatSignal(latest, '', { signalNum: latest.num, sourceTs: latest.ts });
+    const fmt = await formatSignal(latest, '', { signalNum: latest.num, sourceTs: latest.ts });
     if (!fmt) {
       await sendMsg(bot.token, chatId, '\u{1F4ED} Latest signal could not be formatted. Try again later.');
       return;

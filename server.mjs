@@ -519,6 +519,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/' || url.pathname === '/index.html') {
       return send(res, 200, await readFile(join(ROOT, 'public', 'index.html')), 'text/html');
     }
+    // Static files from public/ (landing.html, etc)
+    if (/^\/(landing|about|pricing)\.html$/.test(url.pathname)) {
+      const file = url.pathname.slice(1);
+      try { return send(res, 200, await readFile(join(ROOT, 'public', file)), 'text/html'); }
+      catch { return send(res, 404, { error: 'not found' }); }
+    }
     // materialy sprzedazowe (demo dla klienta, oferta PDF, skrypty outreachu)
     if (url.pathname.startsWith('/sales/')) {
       const name = url.pathname.slice('/sales/'.length);

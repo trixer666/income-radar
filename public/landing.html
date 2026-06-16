@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07070f">
+<meta name="description" content="Income Radar — AI monitors 10 freelance platforms, drafts proposals in 28s, and aggregates crypto signals from 12 verified channels. Self-hosted, open source, zero npm dependencies.">
+<title>Income Radar — Stop browsing. Start earning.</title>
+<style>
+  /* ============================================================
+     Income Radar landing — single file, zero external deps.
+     Palette: #07070f bg, #0f172a panels, #4ade80 green, #60a5fa blue.
+     ============================================================ */
+  :root {
+    --bg: #07070f;
+    --bg-soft: #0b0b18;
+    --panel: #0f172a;
+    --panel-2: #131c33;
+    --border: #1f2a44;
+    --border-2: #2a3a5e;
+    --text: #e6edf7;
+    --muted: #94a3b8;
+    --dim: #64748b;
+    --green: #4ade80;
+    --green-soft: rgba(74, 222, 128, .12);
+    --blue: #60a5fa;
+    --blue-soft: rgba(96, 165, 250, .12);
+    --violet: #a78bfa;
+    --amber: #fbbf24;
+    --pink: #f472b6;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Code", "Cascadia Mono", "Fira Code", "JetBrains Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    --maxw: 1200px;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow-lg: 0 30px 70px -20px rgba(0, 0, 0, .65), 0 0 0 1px rgba(255, 255, 255, .02) inset;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  ::selection { background: rgba(74, 222, 128, .35); color: #fff; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  img { max-width: 100%; display: block; }
+  code, kbd { font-family: var(--mono); font-size: .92em; }
+
+  .container { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(7, 7, 15, .72);
+    backdrop-filter: saturate(140%) blur(10px);
+    -webkit-backdrop-filter: saturate(140%) blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, .04);
+  }
+  .nav-inner {
+    display: flex; align-items: center; gap: 24px;
+    padding: 14px 0;
+  }
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 15px; letter-spacing: .2px;
+    color: var(--text);
+  }
+  .brand-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 4px rgba(74, 222, 128, .14), 0 0 18px rgba(74, 222, 128, .55);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  .brand b { color: var(--green); }
+  .nav-links { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .nav-links a {
+    color: var(--muted); padding: 6px 12px; border-radius: 8px; font-size: 14px;
+    transition: color .15s ease, background .15s ease;
+  }
+  .nav-links a:hover { color: var(--text); background: rgba(255, 255, 255, .04); text-decoration: none; }
+  .nav-cta {
+    padding: 8px 14px !important;
+    border: 1px solid var(--border-2);
+    color: var(--text) !important;
+    background: var(--panel);
+  }
+  .nav-cta:hover { border-color: var(--green); color: var(--green) !important; background: var(--green-soft) !important; }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(.85); opacity: .65; }
+  }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative;
+    padding: 96px 0 88px;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .hero::before, .hero::after {
+    content: ""; position: absolute; z-index: -1; pointer-events: none;
+    filter: blur(80px); opacity: .55;
+    will-change: transform;
+  }
+  .hero::before {
+    width: 620px; height: 620px; left: -120px; top: -160px;
+    background: radial-gradient(closest-side, #1d4ed8, transparent 70%);
+    animation: drift1 18s ease-in-out infinite alternate;
+  }
+  .hero::after {
+    width: 560px; height: 560px; right: -140px; top: 40px;
+    background: radial-gradient(closest-side, #16a34a, transparent 70%);
+    animation: drift2 22s ease-in-out infinite alternate;
+  }
+  .hero-grid {
+    position: absolute; inset: 0; z-index: -1;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse at 50% 30%, black 35%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 35%, transparent 75%);
+  }
+  @keyframes drift1 {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to   { transform: translate3d(60px, 40px, 0) scale(1.1); }
+  }
+  @keyframes drift2 {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to   { transform: translate3d(-40px, 60px, 0) scale(1.08); }
+  }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--green-soft);
+    color: var(--green);
+    border: 1px solid rgba(74, 222, 128, .28);
+    font-size: 12.5px; font-weight: 600; letter-spacing: .3px;
+    text-transform: uppercase;
+  }
+  .eyebrow .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 10px var(--green);
+  }
+  .h1 {
+    margin-top: 22px;
+    font-size: clamp(40px, 6.4vw, 76px);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -.025em;
+    max-width: 18ch;
+  }
+  .h1 .accent {
+    background: linear-gradient(120deg, var(--green) 0%, #86efac 35%, var(--blue) 75%, var(--violet) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    background-size: 200% 200%;
+    animation: shimmer 8s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+  .sub {
+    margin-top: 22px;
+    font-size: clamp(16px, 1.6vw, 19px);
+    color: var(--muted);
+    max-width: 64ch;
+    line-height: 1.55;
+  }
+  .sub b { color: var(--text); font-weight: 600; }
+
+  .cta-row { margin-top: 36px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 22px; border-radius: 12px;
+    font: inherit; font-size: 15.5px; font-weight: 600;
+    cursor: pointer; border: 1px solid transparent;
+    transition: transform .15s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
+    text-decoration: none !important;
+    line-height: 1;
+  }
+  .btn svg { width: 18px; height: 18px; flex: 0 0 18px; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--green) 0%, #22c55e 100%);
+    color: #052e14;
+    box-shadow: 0 14px 40px -10px rgba(74, 222, 128, .55), 0 0 0 1px rgba(74, 222, 128, .35) inset;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 48px -10px rgba(74, 222, 128, .7), 0 0 0 1px rgba(74, 222, 128, .5) inset; }
+  .btn-ghost {
+    background: rgba(255, 255, 255, .03);
+    color: var(--text);
+    border-color: var(--border-2);
+  }
+  .btn-ghost:hover { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); transform: translateY(-2px); }
+  .btn-small { padding: 10px 16px; font-size: 13.5px; border-radius: 9px; }
+
+  .hero-meta {
+    margin-top: 26px; display: flex; gap: 18px; flex-wrap: wrap;
+    color: var(--dim); font-size: 13px;
+  }
+  .hero-meta span { display: inline-flex; align-items: center; gap: 6px; }
+  .hero-meta svg { width: 14px; height: 14px; color: var(--green); }
+
+  /* ---------- stats bar ---------- */
+  .stats {
+    margin: 30px 0 0;
+    padding: 24px;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    box-shadow: var(--shadow-lg);
+  }
+  .stat {
+    text-align: center;
+    padding: 8px 12px;
+    position: relative;
+  }
+  .stat + .stat::before {
+    content: ""; position: absolute; left: 0; top: 18%; bottom: 18%;
+    width: 1px; background: var(--border);
+  }
+  .stat-val {
+    font-family: var(--mono);
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: -.02em;
+    line-height: 1.1;
+  }
+  .stat:nth-child(2) .stat-val { color: var(--blue); }
+  .stat:nth-child(3) .stat-val { color: var(--amber); }
+  .stat:nth-child(4) .stat-val { color: var(--violet); }
+  .stat-lbl {
+    margin-top: 6px;
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); font-weight: 500;
+  }
+
+  /* ---------- generic section ---------- */
+  section { padding: 88px 0; position: relative; }
+  .sec-head { max-width: 700px; margin: 0 auto 48px; text-align: center; }
+  .sec-tag {
+    display: inline-block; font-family: var(--mono); font-size: 12.5px;
+    color: var(--green); letter-spacing: 1px; text-transform: uppercase;
+    background: var(--green-soft);
+    padding: 4px 12px; border-radius: 999px;
+    border: 1px solid rgba(74, 222, 128, .2);
+  }
+  .sec-title {
+    margin-top: 16px;
+    font-size: clamp(28px, 3.6vw, 42px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+  }
+  .sec-title .accent { color: var(--green); }
+  .sec-sub {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.55;
+  }
+
+  /* ---------- features grid ---------- */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .feat {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .feat::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(600px 200px at var(--mx, 50%) var(--my, 0%), rgba(96, 165, 250, .08), transparent 50%);
+    opacity: 0; transition: opacity .25s ease;
+  }
+  .feat:hover { transform: translateY(-4px); border-color: var(--border-2); box-shadow: 0 20px 50px -22px rgba(0, 0, 0, .8); }
+  .feat:hover::before { opacity: 1; }
+  .feat-icon {
+    width: 44px; height: 44px;
+    border-radius: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--green-soft);
+    color: var(--green);
+    border: 1px solid rgba(74, 222, 128, .25);
+    margin-bottom: 18px;
+  }
+  .feat-icon svg { width: 22px; height: 22px; }
+  .feat:nth-child(2) .feat-icon { background: var(--blue-soft); color: var(--blue); border-color: rgba(96, 165, 250, .25); }
+  .feat:nth-child(3) .feat-icon { background: rgba(167, 139, 250, .12); color: var(--violet); border-color: rgba(167, 139, 250, .25); }
+  .feat:nth-child(4) .feat-icon { background: rgba(244, 114, 182, .12); color: var(--pink); border-color: rgba(244, 114, 182, .25); }
+  .feat:nth-child(5) .feat-icon { background: rgba(251, 191, 36, .12); color: var(--amber); border-color: rgba(251, 191, 36, .25); }
+  .feat:nth-child(6) .feat-icon { background: var(--green-soft); color: var(--green); border-color: rgba(74, 222, 128, .25); }
+  .feat h3 { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+  .feat p { color: var(--muted); font-size: 14.5px; margin-top: 10px; line-height: 1.6; }
+  .feat-meta {
+    margin-top: 18px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .chip {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 3px 8px; border-radius: 6px;
+    background: rgba(255, 255, 255, .04);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .chip-g { color: var(--green); border-color: rgba(74, 222, 128, .3); background: var(--green-soft); }
+  .chip-b { color: var(--blue); border-color: rgba(96, 165, 250, .3); background: var(--blue-soft); }
+
+  /* ---------- bots ---------- */
+  .bots-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .bot {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 26px;
+    display: flex; flex-direction: column;
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+  .bot:hover { transform: translateY(-3px); border-color: rgba(74, 222, 128, .35); box-shadow: 0 18px 40px -18px rgba(74, 222, 128, .25); }
+  .bot-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .bot-avatar {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-weight: 700; font-size: 18px;
+    background: linear-gradient(135deg, var(--green) 0%, var(--blue) 100%);
+    color: #07070f;
+  }
+  .bot:nth-child(2) .bot-avatar { background: linear-gradient(135deg, #f59e0b 0%, var(--pink) 100%); }
+  .bot:nth-child(3) .bot-avatar { background: linear-gradient(135deg, var(--blue) 0%, var(--violet) 100%); }
+  .bot-name { font-size: 16px; font-weight: 700; }
+  .bot-handle { font-family: var(--mono); font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .bot p { color: var(--muted); font-size: 14px; line-height: 1.55; flex: 1; }
+  .bot .btn { margin-top: 18px; justify-content: center; width: 100%; }
+
+  .premium-banner {
+    background:
+      linear-gradient(135deg, rgba(74, 222, 128, .08) 0%, rgba(96, 165, 250, .08) 100%),
+      var(--panel);
+    border: 1px solid rgba(74, 222, 128, .3);
+    border-radius: var(--radius);
+    padding: 22px 26px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .premium-banner .pb-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex: 0 0 44px;
+    background: linear-gradient(135deg, var(--green) 0%, var(--blue) 100%);
+    color: #07070f;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .premium-banner .pb-text { flex: 1; min-width: 220px; }
+  .premium-banner .pb-text b { color: var(--green); font-size: 17px; }
+  .premium-banner .pb-text small { display: block; color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+  .premium-banner .pb-price {
+    font-family: var(--mono);
+    font-size: 18px; font-weight: 700; color: var(--green);
+    background: rgba(74, 222, 128, .12);
+    padding: 8px 14px; border-radius: 10px;
+    border: 1px solid rgba(74, 222, 128, .3);
+  }
+
+  /* ---------- pricing ---------- */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .price {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .price.featured {
+    border-color: rgba(74, 222, 128, .45);
+    box-shadow: 0 0 0 1px rgba(74, 222, 128, .25) inset, 0 30px 60px -20px rgba(74, 222, 128, .25);
+  }
+  .price.featured::before {
+    content: "Most popular";
+    position: absolute; top: -12px; right: 24px;
+    background: linear-gradient(135deg, var(--green) 0%, #22c55e 100%);
+    color: #052e14;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .5px;
+    padding: 5px 12px; border-radius: 999px; text-transform: uppercase;
+  }
+  .price-tier { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); font-weight: 600; }
+  .price-amount { margin-top: 12px; display: flex; align-items: baseline; gap: 6px; }
+  .price-amount .v { font-size: 46px; font-weight: 800; letter-spacing: -.02em; color: var(--text); font-family: var(--mono); }
+  .price-amount .u { color: var(--muted); font-size: 14px; }
+  .price.featured .price-amount .v { color: var(--green); }
+  .price ul { list-style: none; margin: 22px 0 26px; display: flex; flex-direction: column; gap: 12px; }
+  .price ul li { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 14.5px; }
+  .price ul li svg { width: 16px; height: 16px; flex: 0 0 16px; color: var(--green); margin-top: 4px; }
+  .price ul li b { color: var(--text); font-weight: 600; }
+  .price .btn { margin-top: auto; justify-content: center; width: 100%; }
+  .pay-note {
+    margin-top: 22px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13.5px;
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 10px 16px; border-radius: 999px;
+  }
+  .pay-note b { color: var(--green); font-family: var(--mono); }
+  .pay-wrap { text-align: center; margin-top: 28px; }
+
+  /* ---------- open source ---------- */
+  .oss-card {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(96, 165, 250, .12) 0%, transparent 50%),
+      radial-gradient(circle at 100% 100%, rgba(74, 222, 128, .12) 0%, transparent 50%),
+      var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 44px;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+  }
+  .oss-card h2 { font-size: clamp(24px, 3vw, 34px); font-weight: 700; letter-spacing: -.02em; }
+  .oss-card h2 .accent { color: var(--green); }
+  .oss-card p { color: var(--muted); font-size: 16px; margin-top: 12px; max-width: 56ch; margin-inline: auto; }
+  .oss-stats {
+    margin-top: 28px;
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  }
+  .oss-stats .chip {
+    font-size: 13px; padding: 8px 14px;
+    background: var(--bg-soft);
+    color: var(--text);
+  }
+  .oss-stats .chip b { color: var(--green); font-family: var(--mono); }
+  .oss-card .btn { margin-top: 28px; }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 56px 0 36px;
+    margin-top: 32px;
+    background: var(--bg-soft);
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 32px;
+  }
+  .foot-brand b { color: var(--green); }
+  .foot-brand p { color: var(--muted); font-size: 14px; margin-top: 10px; line-height: 1.6; max-width: 36ch; }
+  .foot-col h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); font-weight: 600; }
+  .foot-col ul { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .foot-col a { color: var(--muted); font-size: 14px; }
+  .foot-col a:hover { color: var(--text); }
+  .foot-col code { color: var(--text); font-size: 13px; }
+  .foot-bottom {
+    margin-top: 40px; padding-top: 22px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+    font-size: 13px; color: var(--dim);
+  }
+  .foot-bottom .built {
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .foot-bottom .built b { color: var(--muted); font-weight: 500; }
+
+  /* ---------- fade-in on scroll ---------- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity .7s ease, transform .7s ease;
+    will-change: opacity, transform;
+  }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+      scroll-behavior: auto !important;
+    }
+    .reveal { opacity: 1; transform: none; }
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 960px) {
+    .features-grid { grid-template-columns: repeat(2, 1fr); }
+    .bots-grid { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stat + .stat::before { display: none; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+    .foot-brand { grid-column: 1 / -1; }
+  }
+  @media (max-width: 768px) {
+    .container { padding: 0 18px; }
+    section { padding: 64px 0; }
+    .hero { padding: 64px 0 56px; }
+    .features-grid { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: 1fr 1fr; padding: 18px; }
+    .nav-links a:not(.nav-cta) { display: none; }
+    .h1 { max-width: none; }
+    .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+    .oss-card { padding: 28px 22px; }
+    .price { padding: 24px; }
+    .premium-banner { padding: 18px; }
+    .premium-banner .pb-price { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== nav ===== -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-dot" aria-hidden="true"></span>
+      Income<b>Radar</b>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#bots">Signal bots</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#opensource">Open source</a>
+      <a class="nav-cta" href="/">Dashboard &rarr;</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ===== hero ===== -->
+<section class="hero" id="top">
+  <div class="hero-grid" aria-hidden="true"></div>
+  <div class="container">
+    <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Live &middot; 12 channels &middot; 28s pipeline</span>
+    <h1 class="h1">
+      Stop browsing.<br>
+      <span class="accent">Start earning.</span>
+    </h1>
+    <p class="sub">
+      AI monitors <b>10 freelance platforms</b>, generates proposals in <b>28 seconds</b>,
+      and delivers crypto signals from <b>12 verified channels</b> &mdash; all from a self-hosted
+      dashboard you control.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://t.me/cshub_signals_bot" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+        Get Free Signals
+      </a>
+      <a class="btn btn-ghost" href="/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        View Dashboard
+      </a>
+    </div>
+    <div class="hero-meta">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>No credit card</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Zero npm dependencies</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>100% open source</span>
+    </div>
+
+    <!-- stats bar -->
+    <div class="stats reveal" role="list" aria-label="Project stats">
+      <div class="stat" role="listitem">
+        <div class="stat-val">5,000+</div>
+        <div class="stat-lbl">Lines of code</div>
+      </div>
+      <div class="stat" role="listitem">
+        <div class="stat-val">12</div>
+        <div class="stat-lbl">Signal sources</div>
+      </div>
+      <div class="stat" role="listitem">
+        <div class="stat-val">28<small style="font-size:.55em;color:var(--muted);font-weight:500">s</small></div>
+        <div class="stat-lbl">Pipeline cycle</div>
+      </div>
+      <div class="stat" role="listitem">
+        <div class="stat-val">500+</div>
+        <div class="stat-lbl">Signals scraped</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== features ===== -->
+<section id="features">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="sec-tag">// what it does</span>
+      <h2 class="sec-title">Six modules. <span class="accent">One pipeline.</span></h2>
+      <p class="sec-sub">Every block runs unattended. Connect Telegram, point it at your sources, and let it scrape, score, draft, and ship.</p>
+    </div>
+
+    <div class="features-grid">
+      <article class="feat reveal">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        </div>
+        <h3>Income Radar</h3>
+        <p>Scrapes 10 freelance &amp; bounty platforms every 5 minutes. AI ranks fit, drafts personalized proposals, and pings Telegram only for high-value hits.</p>
+        <div class="feat-meta">
+          <span class="chip chip-g">10 sources</span>
+          <span class="chip">auto-proposals</span>
+          <span class="chip">Telegram alerts</span>
+        </div>
+      </article>
+
+      <article class="feat reveal">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h2l3-9 4 18 3-9h6"/></svg>
+        </div>
+        <h3>Signal Bots</h3>
+        <p>Aggregates 12 verified Telegram crypto channels into a single feed. Premium tier rolls in whale alerts and priority delivery, paid in USDT with on-chain verification.</p>
+        <div class="feat-meta">
+          <span class="chip chip-b">12 channels</span>
+          <span class="chip">$30/msc USDT</span>
+          <span class="chip">auto-verify</span>
+        </div>
+      </article>
+
+      <article class="feat reveal">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </div>
+        <h3>Video Pipeline</h3>
+        <p>Turns every signal into a 30-second AI-narrated short. Outputs vertical clips ready for TikTok and YouTube Shorts straight from the queue.</p>
+        <div class="feat-meta">
+          <span class="chip">TikTok</span>
+          <span class="chip">YouTube</span>
+          <span class="chip">AI narration</span>
+        </div>
+      </article>
+
+      <article class="feat reveal">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H5.17L4 17.17V4z"/><polyline points="22 7 22 22 17 17"/></svg>
+        </div>
+        <h3>Cold Outreach</h3>
+        <p>Lead-gen engine pulls business contacts, generates AI-personalized emails, and tracks the funnel from new &rarr; sent &rarr; replied &rarr; converted.</p>
+        <div class="feat-meta">
+          <span class="chip">lead scraping</span>
+          <span class="chip">AI emails</span>
+          <span class="chip">funnel CRM</span>
+        </div>
+      </article>
+
+      <article class="feat reveal">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="9" y1="4" x2="9" y2="20"/></svg>
+        </div>
+        <h3>Content Engine</h3>
+        <p>One queue, every platform. Generates posts for Twitter, LinkedIn, Reddit and dev.to from a 7-day calendar plus 20 promo templates.</p>
+        <div class="feat-meta">
+          <span class="chip">5 platforms</span>
+          <span class="chip">7-day calendar</span>
+          <span class="chip">20 templates</span>
+        </div>
+      </article>
+
+      <article class="feat reveal">
+        <div class="feat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+        </div>
+        <h3>Earnings Tracker</h3>
+        <p>Per-stream P&amp;L with win rates, daily / weekly / monthly rollups, and a live ledger so you know which channel is actually paying rent.</p>
+        <div class="feat-meta">
+          <span class="chip chip-g">per-stream</span>
+          <span class="chip">win rates</span>
+          <span class="chip">D / W / M</span>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===== signal bots ===== -->
+<section id="bots" style="background:linear-gradient(180deg, transparent 0%, var(--bg-soft) 30%, var(--bg-soft) 70%, transparent 100%);">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="sec-tag">// signal bots</span>
+      <h2 class="sec-title">Three bots. <span class="accent">Free to join.</span></h2>
+      <p class="sec-sub">Real-time crypto calls aggregated from 12 verified channels. Subscribe to any of the three feeds &mdash; upgrade to Premium when you want the full firehose.</p>
+    </div>
+
+    <div class="bots-grid">
+      <article class="bot reveal">
+        <div class="bot-head">
+          <div class="bot-avatar" aria-hidden="true">CS</div>
+          <div>
+            <div class="bot-name">Crypto Signal Hub</div>
+            <div class="bot-handle">@cshub_signals_bot</div>
+          </div>
+        </div>
+        <p>General-purpose crypto signals aggregated across the major caps and trending mid-caps. Best starting point if you want one feed.</p>
+        <a class="btn btn-primary btn-small" href="https://t.me/cshub_signals_bot" target="_blank" rel="noopener noreferrer">Join Free</a>
+      </article>
+
+      <article class="bot reveal">
+        <div class="bot-head">
+          <div class="bot-avatar" aria-hidden="true">SS</div>
+          <div>
+            <div class="bot-name">Solana Sniper</div>
+            <div class="bot-handle">@sol_sniper_signals_bot</div>
+          </div>
+        </div>
+        <p>Solana-only feed tuned for fast-moving SPL tokens and launch sniping. Lower latency, higher signal density.</p>
+        <a class="btn btn-primary btn-small" href="https://t.me/sol_sniper_signals_bot" target="_blank" rel="noopener noreferrer">Join Free</a>
+      </article>
+
+      <article class="bot reveal">
+        <div class="bot-head">
+          <div class="bot-avatar" aria-hidden="true">CP</div>
+          <div>
+            <div class="bot-name">Crypto Signals PRO</div>
+            <div class="bot-handle">@crypto_signals_prox_bot</div>
+          </div>
+        </div>
+        <p>Premium-grade signals from the most consistent channels with stricter scoring. Curated, not flooded.</p>
+        <a class="btn btn-primary btn-small" href="https://t.me/crypto_signals_prox_bot" target="_blank" rel="noopener noreferrer">Join Free</a>
+      </article>
+    </div>
+
+    <div class="premium-banner reveal">
+      <div class="pb-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"/></svg>
+      </div>
+      <div class="pb-text">
+        <b>Premium &mdash; $30/msc USDT</b>
+        <small>All 12 channels &middot; whale alerts &middot; priority delivery &middot; auto blockchain verification on TRC-20</small>
+      </div>
+      <span class="pb-price">$30 / msc</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== pricing ===== -->
+<section id="pricing">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="sec-tag">// pricing</span>
+      <h2 class="sec-title">Free forever. <span class="accent">Or unlock everything.</span></h2>
+      <p class="sec-sub">No trials, no tiers above. Pay once a month in USDT and the bot verifies the transfer on-chain automatically.</p>
+    </div>
+
+    <div class="pricing-grid">
+      <article class="price reveal">
+        <div class="price-tier">Free</div>
+        <div class="price-amount">
+          <span class="v">$0</span>
+          <span class="u">/ forever</span>
+        </div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>1 signal/day</b> from the rotating top picks</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>/free</b> command for an on-demand pick</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Referral bonuses &mdash; bring a friend, get extra signals</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Access to all three public bots</span></li>
+        </ul>
+        <a class="btn btn-ghost" href="https://t.me/cshub_signals_bot" target="_blank" rel="noopener noreferrer">Start Free</a>
+      </article>
+
+      <article class="price featured reveal">
+        <div class="price-tier" style="color:var(--green)">Premium</div>
+        <div class="price-amount">
+          <span class="v">$30</span>
+          <span class="u">/ msc &middot; USDT</span>
+        </div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>ALL signals</b> from all 12 verified channels, in real time</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Whale alerts</b> &mdash; large on-chain moves the moment they land</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><b>Priority delivery</b> &mdash; you get every call before the free tier</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Auto blockchain verification &mdash; pay USDT, access unlocks itself</span></li>
+        </ul>
+        <a class="btn btn-primary" href="https://t.me/cshub_signals_bot" target="_blank" rel="noopener noreferrer">Upgrade to Premium</a>
+      </article>
+    </div>
+
+    <div class="pay-wrap reveal">
+      <span class="pay-note">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Payment: <b>USDT TRC-20</b> &middot; auto blockchain verification &middot; no Stripe, no card data
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== open source ===== -->
+<section id="opensource">
+  <div class="container">
+    <div class="oss-card reveal">
+      <h2>Built in public. <span class="accent">100% open source.</span></h2>
+      <p>Every line that powers the bots, the dashboard, and the pipeline lives on GitHub. Fork it, self-host it, or audit it before paying a cent.</p>
+      <div class="oss-stats">
+        <span class="chip">Node.js <b>v21+</b></span>
+        <span class="chip"><b>0</b> npm dependencies</span>
+        <span class="chip"><b>5,000+</b> LOC</span>
+        <span class="chip">Pure ESM</span>
+      </div>
+      <a class="btn btn-ghost" href="https://github.com/trixer666/income-radar" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.07 0 0 .97-.31 3.18 1.18.92-.26 1.91-.39 2.89-.39.98 0 1.97.13 2.89.39 2.21-1.49 3.18-1.18 3.18-1.18.63 1.6.23 2.78.11 3.07.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.77 1.06.77 2.14 0 1.54-.01 2.78-.01 3.16 0 .31.21.67.79.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5Z"/></svg>
+        github.com/trixer666/income-radar
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== footer ===== -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="foot-brand">
+        <div class="brand" style="font-size:17px">
+          <span class="brand-dot" aria-hidden="true"></span>
+          Income<b>Radar</b>
+        </div>
+        <p>Self-hosted AI income automation. Built by one person, shipped open source, paid in crypto.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#bots">Signal bots</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="/">Dashboard</a></li>
+          <li><a href="https://github.com/trixer666/income-radar" target="_blank" rel="noopener noreferrer">GitHub repo</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="https://trixer666.github.io" target="_blank" rel="noopener noreferrer">Patryk &mdash; trixer666.github.io</a></li>
+          <li><a href="https://t.me/jarkens_bot" target="_blank" rel="noopener noreferrer">@jarkens_bot &middot; admin</a></li>
+          <li><a href="mailto:patrykjaros529@gmail.com">patrykjaros529@gmail.com</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>&copy; 2026 Patryk &middot; Income Radar. Open source under permissive license.</span>
+      <span class="built"><b>Built with</b> <code style="color:var(--green)">Claude Code</code></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Fade-in on scroll. No external dependencies; IntersectionObserver is a
+  // browser-native API. Single observer reused across all .reveal nodes so we
+  // never allocate per-element handlers.
+  (function () {
+    var nodes = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window) || !nodes.length) {
+      for (var i = 0; i < nodes.length; i++) nodes[i].classList.add('in');
+      return;
+    }
+    var io = new IntersectionObserver(function (entries, obs) {
+      for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          obs.unobserve(e.target);
+        }
+      }
+    }, { rootMargin: '0px 0px -40px 0px', threshold: 0.08 });
+    for (var j = 0; j < nodes.length; j++) io.observe(nodes[j]);
+  })();
+
+  // Subtle pointer-tracked spotlight on feature cards. Skipped on touch and
+  // for users that prefer reduced motion.
+  (function () {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia('(hover: none)').matches) return;
+    var cards = document.querySelectorAll('.feat');
+    cards.forEach(function (card) {
+      card.addEventListener('pointermove', function (e) {
+        var r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+        card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
