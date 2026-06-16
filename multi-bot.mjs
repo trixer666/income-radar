@@ -18,21 +18,19 @@ const TRONGRID_API = 'https://api.trongrid.io';
 
 // Public signal channels to scrape (via t.me/s/ web preview)
 const SIGNAL_SOURCES = [
+  // === VERIFIED WORKING (tested 2026-06-16) ===
   { id: 'WhaleCalls', url: 'https://t.me/s/WhaleCalls', type: 'whale' },
-  { id: 'CryptoSignalsOrg', url: 'https://t.me/s/CryptoSignalsOrg', type: 'signals' },
   { id: 'BinanceKillers', url: 'https://t.me/s/BinanceKillers', type: 'signals' },
-  { id: 'CoinSignals', url: 'https://t.me/s/CoinSignals', type: 'signals' },
-  { id: 'crypto_futures_signals_trading', url: 'https://t.me/s/crypto_futures_signals_trading', type: 'futures' },
-  { id: 'crypto_futures_binance', url: 'https://t.me/s/crypto_futures_binance', type: 'futures' },
-  { id: 'WallStreetBetsELITE', url: 'https://t.me/s/WallStreetBetsELITE', type: 'signals' },
   { id: 'cryptosignalsfree', url: 'https://t.me/s/cryptosignalsfree', type: 'signals' },
   { id: 'CryptoVIPSignalFree', url: 'https://t.me/s/CryptoVIPSignalFree', type: 'signals' },
-  { id: 'defikidblog', url: 'https://t.me/s/defikidblog', type: 'defi' },
   { id: 'whale_alert_io', url: 'https://t.me/s/whale_alert_io', type: 'whale' },
-  { id: 'CryptoBusy', url: 'https://t.me/s/CryptoBusy', type: 'signals' },
-  { id: 'AltcoinBuzz', url: 'https://t.me/s/AltcoinBuzz', type: 'news' },
-  { id: 'solanafloor', url: 'https://t.me/s/solanafloor', type: 'solana' },
-  { id: 'BitcoinMagazine', url: 'https://t.me/s/BitcoinMagazine', type: 'news' },
+  { id: 'EveningTrader', url: 'https://t.me/s/EveningTrader', type: 'signals' },
+  { id: 'WolfOfTrading', url: 'https://t.me/s/WolfOfTrading', type: 'signals' },
+  { id: 'RavenSignalsPro', url: 'https://t.me/s/RavenSignalsPro', type: 'futures' },
+  { id: 'sublimetraders', url: 'https://t.me/s/sublimetraders', type: 'signals' },
+  { id: 'DeFiMillionaire', url: 'https://t.me/s/DeFiMillionaire', type: 'defi' },
+  { id: 'fatpigsignals', url: 'https://t.me/s/fatpigsignals', type: 'signals' },
+  { id: 'Learn2TradeCrypto', url: 'https://t.me/s/Learn2TradeCrypto', type: 'signals' },
 ];
 
 // ============= DATA =============
@@ -123,37 +121,51 @@ async function scrapeChannel(source) {
   }
 }
 
-// Parse signal from raw text
+// Parse signal from raw text — improved pair detection
 function parseSignal(text) {
   const upper = text.toUpperCase();
 
   // Detect direction
   let direction = null;
-  if (upper.includes('LONG') || upper.includes('BUY') || upper.includes('BULLISH')) direction = 'LONG';
-  if (upper.includes('SHORT') || upper.includes('SELL') || upper.includes('BEARISH')) direction = 'SHORT';
+  if (upper.includes('LONG') || upper.includes('BUY') || upper.includes('BULLISH') || upper.includes('🟢') || upper.includes('📈')) direction = 'LONG';
+  if (upper.includes('SHORT') || upper.includes('SELL') || upper.includes('BEARISH') || upper.includes('🔴') || upper.includes('📉')) direction = 'SHORT';
 
-  // Detect pair
-  const pairMatch = text.match(/\b([A-Z]{2,10})\s*[\/\\]\s*(USDT|USD|BTC|ETH|BUSD)\b/i);
-  const pair = pairMatch ? `${pairMatch[1].toUpperCase()}/${pairMatch[2].toUpperCase()}` : null;
+  // Detect pair — multiple formats
+  let pair = null;
+  // Format: BTC/USDT, ETH/BTC etc
+  const slash = upper.match(/\b([A-Z]{2,10})\s*[\/\\]\s*(USDT|USD|BTC|ETH|BUSD|USDC)\b/);
+  if (slash) { pair = slash[1]+'/'+slash[2]; }
+  // Format: BTCUSDT (concatenated)
+  if (!pair) { const concat = upper.match(/\b(BTC|ETH|SOL|XRP|DOGE|ADA|DOT|AVAX|LINK|MATIC|BNB|PEPE|WIF|BONK|ARB|OP|APT|SUI|SEI|TIA|JUP|WLD|FET|RNDR|INJ|NEAR)(USDT|USD|BTC|ETH|BUSD|USDC|PERP)\b/); if (concat) pair = concat[1]+'/'+concat[2]; }
+  // Format: #BTC, $BTC, #ETH (hashtag/dollar)
+  if (!pair) { const hash = upper.match(/[#$]\s*(BTC|ETH|SOL|XRP|DOGE|ADA|DOT|AVAX|LINK|MATIC|BNB|PEPE|WIF|BONK|ARB|OP|APT|SUI|SEI|TIA|JUP|WLD|FET|RNDR|INJ|NEAR)\b/); if (hash) pair = hash[1]+'/USDT'; }
+  // Format: standalone known coin names in context of signal
+  if (!pair && direction) { const coin = upper.match(/\b(BITCOIN|ETHEREUM|SOLANA|RIPPLE|DOGECOIN)\b/); if (coin) { const map = {BITCOIN:'BTC',ETHEREUM:'ETH',SOLANA:'SOL',RIPPLE:'XRP',DOGECOIN:'DOGE'}; pair = (map[coin[1]]||coin[1])+'/USDT'; } }
 
-  // Detect entry price
-  const entryMatch = text.match(/(?:entry|enter|price|buy|sell)[:\s]*\$?([\d,.]+)/i);
-  const entry = entryMatch ? entryMatch[1].replace(',', '') : null;
+  // Detect entry price — more patterns
+  const entryPatterns = [
+    /(?:entry|enter|price|buy|sell|ep)\s*[:=]\s*\$?([\d,.]+)/i,
+    /(?:entry|price)\s+(?:zone|area|around)?\s*\$?([\d,.]+)/i,
+    /(?:at|@)\s*\$?([\d,.]+)/i,
+  ];
+  let entry = null;
+  for (const p of entryPatterns) { const m = text.match(p); if (m) { entry = m[1].replace(/,/g, ''); break; } }
 
   // Detect targets
-  const tpMatches = [...text.matchAll(/(?:tp|target|take profit)\s*\d?\s*[:\s]*\$?([\d,.]+)/gi)];
-  const targets = tpMatches.map(m => m[1].replace(',', '')).filter(Boolean);
+  const tpMatches = [...text.matchAll(/(?:tp|target|take\s*profit|t\.p)\s*\d?\s*[:=\s]\s*\$?([\d,.]+)/gi)];
+  const targets = tpMatches.map(m => m[1].replace(/,/g, '')).filter(Boolean);
 
   // Detect stop loss
-  const slMatch = text.match(/(?:sl|stop loss|stop|stoploss)[:\s]*\$?([\d,.]+)/i);
-  const stopLoss = slMatch ? slMatch[1].replace(',', '') : null;
+  const slPatterns = [/(?:sl|stop\s*loss|stoploss|s\.l)\s*[:=\s]\s*\$?([\d,.]+)/i];
+  let stopLoss = null;
+  for (const p of slPatterns) { const m = text.match(p); if (m) { stopLoss = m[1].replace(/,/g, ''); break; } }
 
   // Detect leverage
-  const levMatch = text.match(/(\d+)\s*x\s*(?:lev|leverage)?/i);
+  const levMatch = text.match(/(\d{1,3})\s*x\b/i) || text.match(/leverage\s*[:=]\s*(\d+)/i);
   const leverage = levMatch ? levMatch[1] : null;
 
-  // Is this a signal? (must have at least direction OR pair)
-  const isSignal = (direction || pair) && (entry || targets.length || text.length < 500);
+  // Is this a signal?
+  const isSignal = (direction || pair) && (entry || targets.length || stopLoss || text.length < 500);
 
   return { direction, pair, entry, targets, stopLoss, leverage, isSignal };
 }
