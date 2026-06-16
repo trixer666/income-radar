@@ -312,6 +312,126 @@ async function scanDexScreenerNewPairs() {
   }
 }
 
+// ============= PUMP.FUN REAL-TIME NEW TOKEN MONITOR =============
+// PumpPortal WebSocket — free, no auth, real-time new token launches
+let pumpWsConnected = false;
+function startPumpFunMonitor(signalBots, adminBot, cfg) {
+  const WS_URL = 'wss://pumpportal.fun/api/data';
+  let ws = null;
+  let reconnectTimer = null;
+  const seenMints = new Set();
+
+  function connect() {
+    try {
+      ws = new WebSocket(WS_URL);
+    } catch {
+      // WebSocket not available in older Node — use fetch polling fallback
+      console.log('[pump.fun] WebSocket not available, using REST fallback');
+      startPumpFunPolling(signalBots, adminBot, cfg);
+      return;
+    }
+
+    ws.on('open', () => {
+      pumpWsConnected = true;
+      console.log('[pump.fun] WebSocket connected');
+      // Subscribe to new token creations
+      ws.send(JSON.stringify({ method: 'subscribeNewToken' }));
+    });
+
+    ws.on('message', async (data) => {
+      try {
+        const event = JSON.parse(data.toString());
+        if (!event.mint || seenMints.has(event.mint)) return;
+        seenMints.add(event.mint);
+
+        const symbol = event.symbol || event.name?.slice(0, 10) || '???';
+        const name = event.name || '';
+        const mcapSol = event.marketCapSol || 0;
+        const uri = event.uri || '';
+
+        // Filter: only tokens with some initial buy (not pure spam)
+        if (!event.initialBuy && mcapSol < 0.5) return;
+
+        // Check safety (quick, non-blocking)
+        const safety = await checkTokenSafety(event.mint, 'solana').catch(() => ({safe: null, score: 0, risks: []}));
+
+        const safeEmoji = safety.safe === true ? '\u2705' : safety.safe === false ? '\u26A0\uFE0F' : '\u2753';
+        const msg =
+          `\u{1F680} *NEW TOKEN LAUNCH*\n` +
+          `\u2500`.repeat(20) + `\n` +
+          `\u{1F4B0} *${symbol}* (${name.slice(0, 30)})\n` +
+          `\u{1F30D} Pump.fun | Solana\n` +
+          `\u{1F4CA} Initial mcap: ${mcapSol.toFixed(1)} SOL\n` +
+          `${safeEmoji} Safety: ${safety.score}/1000\n` +
+          `\u{1F517} [Pump.fun](https://pump.fun/${event.mint})\n` +
+          `\u{1F517} [DexScreener](https://dexscreener.com/solana/${event.mint})\n` +
+          `\u2500`.repeat(20) + `\n` +
+          `\u26A0\uFE0F _Extremely high risk. DYOR. NFA._\n` +
+          `\u{1F514} /subscribe for all alerts`;
+
+        // Broadcast to premium only (new launches are premium feature)
+        await broadcastSignal(signalBots, msg);
+        await sendMsg(adminBot.token, cfg.telegramChatId,
+          `\u{1F680} PUMP.FUN: ${symbol} mcap:${mcapSol.toFixed(1)}SOL safe:${safety.score}`);
+        console.log(`[pump.fun] ${symbol} mcap:${mcapSol.toFixed(1)}SOL`);
+
+        // Trim seen set
+        if (seenMints.size > 2000) {
+          const arr = [...seenMints]; arr.splice(0, arr.length - 1000);
+          seenMints.clear(); arr.forEach(a => seenMints.add(a));
+        }
+      } catch (e) {
+        if (Math.random() < 0.05) console.error('[pump.fun] msg error:', e.message);
+      }
+    });
+
+    ws.on('close', () => {
+      pumpWsConnected = false;
+      console.log('[pump.fun] WebSocket disconnected, reconnecting in 10s...');
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connect, 10000);
+    });
+
+    ws.on('error', (err) => {
+      console.error('[pump.fun] WS error:', err.message);
+      try { ws.close(); } catch {}
+    });
+  }
+
+  connect();
+}
+
+// REST fallback for environments without WebSocket
+async function startPumpFunPolling(signalBots, adminBot, cfg) {
+  const seenMints = new Set();
+  setInterval(async () => {
+    try {
+      // Use DexScreener latest Solana pairs as proxy for pump.fun new tokens
+      const res = await fetch('https://api.dexscreener.com/latest/dex/search?q=pump.fun', {
+        signal: AbortSignal.timeout(8000)
+      });
+      const data = await res.json();
+      const pairs = (data.pairs || []).filter(p =>
+        p.chainId === 'solana' && p.pairCreatedAt && Date.now() - p.pairCreatedAt < 600000 // last 10 min
+      ).slice(0, 3);
+
+      for (const p of pairs) {
+        if (seenMints.has(p.baseToken?.address)) continue;
+        seenMints.add(p.baseToken?.address);
+        const symbol = p.baseToken?.symbol || '???';
+        const liq = parseFloat(p.liquidity?.usd) || 0;
+        if (liq < 2000) continue;
+
+        const msg = `\u{1F680} *New Solana Token*\n${symbol} | Liq: $${(liq/1000).toFixed(1)}K\n${p.url || ''}`;
+        await broadcastSignal(signalBots, msg);
+        console.log(`[pump.fun/rest] ${symbol} liq:$${(liq/1000).toFixed(0)}K`);
+      }
+      if (seenMints.size > 1000) { const a=[...seenMints]; a.splice(0,500); seenMints.clear(); a.forEach(x=>seenMints.add(x)); }
+    } catch {}
+  }, 5 * 60 * 1000);
+  console.log('[pump.fun] REST fallback: polling every 5 min');
+}
+
 // ============= TOKEN SAFETY CHECK =============
 async function checkTokenSafety(address, chain = 'solana') {
   try {
@@ -691,6 +811,21 @@ async function main() {
     }
   }, 10 * 60 * 1000); // 10 min
   console.log('[multi-bot] DexScreener scanner: ON (every 10 min)');
+
+  // Pump.fun real-time new token monitor
+  try {
+    // Check if WebSocket is available (Node 21+)
+    const { WebSocket: WS } = await import('ws').catch(() => ({ WebSocket: globalThis.WebSocket }));
+    if (WS || globalThis.WebSocket) {
+      if (!globalThis.WebSocket && WS) globalThis.WebSocket = WS;
+      startPumpFunMonitor(signalBots, adminBot, cfg);
+    } else {
+      startPumpFunPolling(signalBots, adminBot, cfg);
+    }
+  } catch {
+    // No WebSocket available — use REST fallback
+    startPumpFunPolling(signalBots, adminBot, cfg);
+  }
 
   // Auto video generation - once per day at 12:00 UTC
   function scheduleDaily(fn, hour = 12) {
