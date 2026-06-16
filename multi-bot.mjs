@@ -262,6 +262,96 @@ async function formatSignal(parsed, rawText, opts = {}) {
   return msg;
 }
 
+// ============= DEXSCREENER NEW PAIRS SCANNER =============
+async function scanDexScreenerNewPairs() {
+  try {
+    // Get recently boosted tokens (trending)
+    const boostRes = await fetch('https://api.dexscreener.com/token-boosts/latest/v1', {
+      signal: AbortSignal.timeout(8000)
+    });
+    const boosts = await boostRes.json();
+
+    // Filter Solana tokens with >$10K liquidity
+    const solTokens = (boosts || []).filter(t =>
+      t.chainId === 'solana' && t.url
+    ).slice(0, 5);
+
+    const results = [];
+    for (const t of solTokens) {
+      // Get pair details
+      const tokenAddr = t.tokenAddress;
+      if (!tokenAddr) continue;
+      const detailRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddr}`, {
+        signal: AbortSignal.timeout(5000)
+      });
+      const detail = await detailRes.json();
+      const pair = detail?.pairs?.[0];
+      if (!pair) continue;
+
+      const price = parseFloat(pair.priceUsd) || 0;
+      const volume24h = parseFloat(pair.volume?.h24) || 0;
+      const liquidity = parseFloat(pair.liquidity?.usd) || 0;
+      const priceChange = parseFloat(pair.priceChange?.h24) || 0;
+      const symbol = pair.baseToken?.symbol || '???';
+      const name = pair.baseToken?.name || '';
+
+      // Only interesting tokens: >$5K liquidity, >$1K volume
+      if (liquidity < 5000 || volume24h < 1000) continue;
+
+      results.push({
+        symbol, name, price, volume24h, liquidity, priceChange,
+        address: tokenAddr,
+        dexUrl: pair.url || `https://dexscreener.com/solana/${tokenAddr}`,
+        pairAddress: pair.pairAddress,
+      });
+    }
+    return results;
+  } catch (e) {
+    console.error('[dexscreener]', e.message);
+    return [];
+  }
+}
+
+// ============= TOKEN SAFETY CHECK =============
+async function checkTokenSafety(address, chain = 'solana') {
+  try {
+    if (chain === 'solana') {
+      // RugCheck for Solana
+      const res = await fetch(`https://api.rugcheck.xyz/v1/tokens/${address}/report/summary`, {
+        signal: AbortSignal.timeout(5000)
+      });
+      const data = await res.json();
+      return {
+        safe: data.score >= 500, // rugcheck score: higher = safer
+        score: data.score || 0,
+        risks: data.risks?.map(r => r.name)?.slice(0, 3) || [],
+        source: 'rugcheck'
+      };
+    }
+    // GoPlus for EVM chains
+    const chainId = chain === 'ethereum' ? '1' : chain === 'bsc' ? '56' : '1';
+    const res = await fetch(`https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${address}`, {
+      signal: AbortSignal.timeout(5000)
+    });
+    const data = await res.json();
+    const info = data.result?.[address.toLowerCase()];
+    if (!info) return { safe: null, score: 0, risks: ['unknown'], source: 'goplus' };
+    const isHoneypot = info.is_honeypot === '1';
+    const isOpenSource = info.is_open_source === '1';
+    const canSell = info.cannot_sell_all !== '1';
+    return {
+      safe: !isHoneypot && canSell,
+      score: isHoneypot ? 0 : (isOpenSource ? 800 : 400),
+      risks: [
+        isHoneypot && 'honeypot',
+        !canSell && 'cannot-sell',
+        !isOpenSource && 'closed-source'
+      ].filter(Boolean),
+      source: 'goplus'
+    };
+  } catch { return { safe: null, score: 0, risks: ['check-failed'], source: 'error' }; }
+}
+
 // ============= MULTI-BOT BROADCAST =============
 async function broadcastSignal(bots, signalText) {
   for (const [username, bot] of Object.entries(bots)) {
@@ -411,6 +501,17 @@ async function handleAdminMessage(adminToken, msg, cfg) {
     const sc = await loadJson(SCRAPED_PATH,{signals:[]}); let resp = '\u{1F4E1} *Last 5:*\n';
     for (const s of sc.signals.slice(-5)) resp += `${s.direction==='LONG'?'\u{1F7E2}':'\u{1F534}'} ${s.pair||'?'} from ${s.source||'?'}\n`;
     await sendMsg(adminToken, chatId, resp);
+  } else if (text === '/dex') {
+    const tokens = await scanDexScreenerNewPairs();
+    let resp = '\u{1F4A1} *DexScreener Trending:*\n';
+    if (!tokens.length) { resp += 'No interesting tokens right now.'; }
+    else {
+      for (const t of tokens.slice(0, 5)) {
+        const safety = await checkTokenSafety(t.address, 'solana');
+        resp += `\n${t.symbol} $${t.price < 0.01 ? t.price.toExponential(2) : t.price.toFixed(4)} vol:$${(t.volume24h/1000).toFixed(0)}K liq:$${(t.liquidity/1000).toFixed(0)}K safe:${safety.score}/1000`;
+      }
+    }
+    await sendMsg(adminToken, chatId, resp);
   } else if (text === '/revenue') {
     const bd = await loadJson(BOTS_PATH, {}); let rev = 0, act = 0;
     for (const u of Object.keys(bd.signal_bots||{})) {
@@ -546,6 +647,50 @@ async function main() {
       console.error('[scrape] error:', e.message);
     }
   }, SCRAPE_INTERVAL);
+
+  // DexScreener new pairs scan every 10 min
+  const dexSeenTokens = new Set();
+  setInterval(async () => {
+    try {
+      const tokens = await scanDexScreenerNewPairs();
+      for (const t of tokens) {
+        if (dexSeenTokens.has(t.address)) continue;
+        dexSeenTokens.add(t.address);
+
+        // Check safety
+        const safety = await checkTokenSafety(t.address, 'solana');
+
+        const safeEmoji = safety.safe === true ? '\u2705' : safety.safe === false ? '\u26A0\uFE0F' : '\u2753';
+        const changeEmoji = t.priceChange >= 0 ? '\u{1F7E2}' : '\u{1F534}';
+
+        const msg = `\u{1F4A1} *New Token Alert*\n` +
+          `\u2500`.repeat(20) + `\n` +
+          `\u{1F4B0} *${t.symbol}* (${t.name})\n` +
+          `\u{1F4B5} Price: $${t.price < 0.01 ? t.price.toExponential(2) : t.price.toFixed(4)}\n` +
+          `${changeEmoji} 24h: ${t.priceChange >= 0 ? '+' : ''}${t.priceChange.toFixed(1)}%\n` +
+          `\u{1F4CA} Vol: $${(t.volume24h/1000).toFixed(1)}K | Liq: $${(t.liquidity/1000).toFixed(1)}K\n` +
+          `${safeEmoji} Safety: ${safety.score}/1000${safety.risks.length ? ' (' + safety.risks.join(', ') + ')' : ''}\n` +
+          `\u{1F517} [DexScreener](${t.dexUrl})\n` +
+          `\u2500`.repeat(20) + `\n` +
+          `\u26A0\uFE0F _NFA. Always DYOR before trading._\n` +
+          `\u{1F514} /subscribe for all alerts`;
+
+        await broadcastSignal(signalBots, msg);
+        await sendMsg(adminBot.token, cfg.telegramChatId, `\u{1F4A1} DexScreener: ${t.symbol} $${t.price} vol:$${(t.volume24h/1000).toFixed(0)}K safe:${safety.score}`);
+        console.log(`[dex] ${t.symbol} $${t.price} vol:$${(t.volume24h/1000).toFixed(0)}K safe:${safety.score}`);
+      }
+      // Trim seen set to prevent memory leak
+      if (dexSeenTokens.size > 1000) {
+        const arr = [...dexSeenTokens];
+        arr.splice(0, arr.length - 500);
+        dexSeenTokens.clear();
+        arr.forEach(a => dexSeenTokens.add(a));
+      }
+    } catch (e) {
+      console.error('[dex] scan error:', e.message);
+    }
+  }, 10 * 60 * 1000); // 10 min
+  console.log('[multi-bot] DexScreener scanner: ON (every 10 min)');
 
   // Auto video generation - once per day at 12:00 UTC
   function scheduleDaily(fn, hour = 12) {
